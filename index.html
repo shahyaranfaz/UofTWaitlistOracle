@@ -35,10 +35,17 @@
           <small id="course-help">Choose a course from the current session</small>
           <ul id="course-options" class="course-options" role="listbox" hidden></ul>
         </div>
+        <div class="field lecture-field">
+          <label for="lecture-display">Lecture</label>
+          <input id="lecture-display" placeholder="CHOOSE LECTURE" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lecture-options" readonly disabled>
+          <input id="lecture" name="lecture" type="hidden">
+          <small id="lecture-help">Your current lecture section</small>
+          <ul id="lecture-options" class="course-options lecture-options" role="listbox" hidden></ul>
+        </div>
         <div class="field position-field">
-          <label for="position">Your position</label>
-          <div class="number-input"><span>#</span><input id="position" name="position" type="number" min="1" max="999" placeholder="Your position" required></div>
-          <small>Current rank on the waitlist</small>
+          <label for="position">Waitlist rank</label>
+          <div class="number-input"><span>#</span><input id="position" name="position" type="number" min="1" max="999" placeholder="ENTER RANK" required></div>
+          <small>Your place on the waitlist</small>
         </div>
         <button type="submit"><span>Ask the Oracle</span><span class="arrow">→</span></button>
       </form>

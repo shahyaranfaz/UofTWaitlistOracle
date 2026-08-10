@@ -1,4 +1,6 @@
 # Local preservation snapshot of the upstream enrollment archive.
 # The application continues to read from the upstream repository.
 data/
+artifacts/
 
+.idea
