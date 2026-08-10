@@ -10,7 +10,8 @@ const lectureList = document.querySelector("#lecture-options");
 let courseOptions = [];
 let activeOption = -1;
 
-const campusFaculty = code => code.includes("H3") ? "SCAR" : code.includes("H5") ? "ERIN" : "ARTSC";
+const campusDigit = code => code.match(/[HY]([135])[FSY]$/)?.[1] ?? "1";
+const campusFaculty = code => campusDigit(code) === "3" ? "SCAR" : campusDigit(code) === "5" ? "ERIN" : "ARTSC";
 const isSummer = session => session.endsWith("5");
 const sessionLabel = session => isSummer(session) ? `Summer ${session.slice(0,4)}` : `Fall/Winter ${session.slice(0,4)}–${Number(session.slice(0,4)) + 1}`;
 const getTerm = code => code.at(-1);
@@ -24,7 +25,7 @@ async function fetchJson(path) {
 }
 
 const courseMeta = code => {
-  const campus = code.includes("H3") ? "Scarborough" : code.includes("H5") ? "Mississauga" : "St. George";
+  const campus = campusDigit(code) === "3" ? "Scarborough" : campusDigit(code) === "5" ? "Mississauga" : "St. George";
   const term = code.endsWith("F") ? "Fall" : code.endsWith("S") ? "Winter" : "Full year";
   return `${campus} · ${term}`;
 };
@@ -234,7 +235,7 @@ function renderEstimate(code, lecture, position, data) {
   const term = getTerm(code) === "S" ? "Winter" : getTerm(code) === "F" ? "Fall" : "full-year";
   results.innerHTML = `<div class="result-grid">
     <div class="result-score"><div class="result-label">ORACLE'S ESTIMATE</div><div class="probability">${data.probability}%</div></div>
-    <div><p class="result-summary">Position <strong>#${position}</strong> in ${code} ${lecture} cleared in <strong>${data.cleared} of ${data.outcomes.length}</strong> comparable lecture offerings.</p>
+    <div><p class="result-summary">Position <strong>#${position}</strong> in ${code} cleared in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings.</p>
       <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${sessionLabel(item.session)} · ${item.meeting} · ${item.instructor}<br><small>${item.startWaitlist} waiting at the comparable date · ${item.movement} spots moved</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "CLEARED" : "DID NOT CLEAR"}</strong></div>`).join("")}</div>
       <p class="result-note">Compared ${data.current.daysRemaining} days before the ${term} waitlist deadline. </p>
     </div></div>`;
