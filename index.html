@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071a16">
+  <meta name="description" content="An explainable historical estimate for U of T course waitlists.">
+  <title>UofT Waitlist Oracle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="noise"></div>
+  <main class="shell">
+    <header class="site-header">
+      <a class="brand" href="#">UofT <span>Waitlist Oracle</span></a>
+      <a class="source-link" href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">Data source ↗</a>
+    </header>
+
+    <section class="tool">
+      <div class="tool-heading">
+        <div>
+          <h1>Will your waitlist spot clear?</h1>
+          <p>Compare your position with previous offerings of the same course.</p>
+        </div>
+        <span class="status"><i></i> Historical estimate</span>
+      </div>
+
+      <form id="oracle-form" class="oracle-card">
+        <div class="field course-field">
+          <label for="course">Course code</label>
+          <input id="course" name="course" placeholder="Start typing a course" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="course-options" required>
+          <small id="course-help">Choose a course from the current session</small>
+          <ul id="course-options" class="course-options" role="listbox" hidden></ul>
+        </div>
+        <div class="field position-field">
+          <label for="position">Your position</label>
+          <div class="number-input"><span>#</span><input id="position" name="position" type="number" min="1" max="999" placeholder="Your position" required></div>
+          <small>Current rank on the waitlist</small>
+        </div>
+        <button type="submit"><span>Ask the Oracle</span><span class="arrow">→</span></button>
+      </form>
+    </section>
+
+    <section id="results" class="results" hidden aria-live="polite"></section>
+    <p class="disclaimer">Unofficial and not academic advice. Estimates use public enrollment history and are never a guarantee.</p>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
