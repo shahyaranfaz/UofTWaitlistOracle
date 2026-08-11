@@ -103,17 +103,17 @@
       <div class="methodology-table-wrap"><table>
         <thead><tr><th>Season</th><th>Method</th><th>Accuracy</th><th>Brier</th><th>ECE</th><th>AUC</th></tr></thead>
         <tbody>
-          <tr><td>Fall/Winter</td><td>Oracle model</td><td><strong>94.2%</strong></td><td><strong>0.0427</strong></td><td><strong>0.0117</strong></td><td><strong>0.9597</strong></td></tr>
+          <tr><td>Fall/Winter</td><td>Oracle model</td><td><strong>94.6%</strong></td><td><strong>0.0394</strong></td><td><strong>0.0098</strong></td><td><strong>0.9673</strong></td></tr>
           <tr><td>Fall/Winter</td><td>Historical percentage</td><td>89.4%</td><td>0.0995</td><td>0.0901</td><td>0.6813</td></tr>
           <tr><td>Fall/Winter</td><td>Literal 10% rule</td><td>71.6%</td><td>0.2843</td><td>0.2843</td><td>0.6366</td></tr>
           <tr><td>Fall/Winter</td><td>Boosted 10% rule</td><td>89.7%</td><td>0.0882</td><td>0.0251</td><td>0.6715</td></tr>
-          <tr><td>Summer</td><td>Oracle model</td><td><strong>94.6%</strong></td><td><strong>0.0414</strong></td><td>0.0234</td><td><strong>0.9517</strong></td></tr>
+          <tr><td>Summer</td><td>Oracle model</td><td><strong>94.5%</strong></td><td><strong>0.0418</strong></td><td>0.0245</td><td><strong>0.9486</strong></td></tr>
           <tr><td>Summer</td><td>Historical percentage</td><td>92.9%</td><td>0.0669</td><td>0.0632</td><td>0.6754</td></tr>
           <tr><td>Summer</td><td>Literal 10% rule</td><td>74.1%</td><td>0.2590</td><td>0.2590</td><td>0.6477</td></tr>
           <tr><td>Summer</td><td>Boosted 10% rule</td><td>92.1%</td><td>0.0711</td><td><strong>0.0157</strong></td><td>0.6868</td></tr>
         </tbody>
       </table></div>
-      <p>The Oracle cut Brier error by 51.5% against the boosted 10% rule, 57.1% against history, and 85.0% against the literal 10% rule in Fall/Winter. Summer reductions were 41.8%, 38.2%, and 84.0%. It had the best Brier score in every chronological holdout.</p>
+      <p>The Oracle cut Brier error by 55.4% against the boosted 10% rule, 60.4% against history, and 86.2% against the literal 10% rule in Fall/Winter. Summer reductions were 41.3%, 37.6%, and 83.9%. It had the best Brier score in every chronological holdout.</p>
       <p>The complete benchmark calculations, chronological fold results, and figure generation are available in <a href="https://github.com/shahyaranfaz/UofTWaitlistOracle/blob/master/notebooks/v1/07_production_benchmark.ipynb" target="_blank" rel="noreferrer">Notebook 7</a>.</p>
       <h3>Production and limitations</h3>
       <p>The exported tree splits, leaf values, and preprocessing medians run locally in the browser. Historical outcomes are fetched and displayed separately. They do not change the model percentage.</p>

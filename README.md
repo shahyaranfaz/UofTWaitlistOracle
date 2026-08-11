@@ -141,11 +141,11 @@ validation weight.
 
 | Season      |                Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|----------------------:|----------:|-----------:|-----------:|-----------:|
-| Fall/Winter |          Oracle model | **94.2%** | **0.0427** | **0.0117** | **0.9597** |
+| Fall/Winter |          Oracle model | **94.6%** | **0.0394** | **0.0098** | **0.9673** |
 | Fall/Winter | Historical percentage |     89.4% |     0.0995 |     0.0901 |     0.6813 |
 | Fall/Winter |      Literal 10% rule |     71.6% |     0.2843 |     0.2843 |     0.6366 |
 | Fall/Winter |      Boosted 10% rule |     89.7% |     0.0882 |     0.0251 |     0.6715 |
-| Summer      |          Oracle model | **94.6%** | **0.0414** |     0.0234 | **0.9517** |
+| Summer      |          Oracle model | **94.5%** | **0.0418** |     0.0245 | **0.9486** |
 | Summer      | Historical percentage |     92.9% |     0.0669 |     0.0632 |     0.6754 |
 | Summer      |      Literal 10% rule |     74.1% |     0.2590 |     0.2590 |     0.6477 |
 | Summer      |      Boosted 10% rule |     92.1% |     0.0711 | **0.0157** |     0.6868 |
@@ -154,9 +154,9 @@ validation weight.
 
 ![Probability error across chronological holdouts](docs/assets/model-chronological-benchmark.png)
 
-The Oracle reduced the mean Brier error by 51.5% against the boosted 10%
-rule, 57.1% against the historical percentage, and 85.0% against the literal
-10% rule in Fall/Winter. The Summer reductions were 41.8%, 38.2%, and 84.0%. It
+The Oracle reduced the mean Brier error by 55.4% against the boosted 10%
+rule, 60.4% against the historical percentage, and 86.2% against the literal
+10% rule in Fall/Winter. The Summer reductions were 41.3%, 37.6%, and 83.9%. It
 also had the best Brier score in every chronological holdout.
 
 ### Production inference
