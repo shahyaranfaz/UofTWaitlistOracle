@@ -96,7 +96,7 @@
           <tr><td>Summer</td><td>2023–2025</td><td>2026</td></tr>
         </tbody>
       </table></div>
-      <p>No validation rows enter that fold's model fit, preprocessing values, or capacity-only baseline fit. Metrics are calculated per holdout and averaged across the three folds for each season. Each lecture-section day receives equal total weight so large queues do not dominate.</p>
+      <p>No validation rows enter that fold's model fit, preprocessing values, or capacity-only baseline fit. Metrics are calculated per holdout and averaged across the three folds for each season. After sampling, every retained lecture offering receives total weight 1 and each retained day contributes equally within its offering. This prevents large queues and random sampling differences from dominating.</p>
       <p>After the model and feature choices are complete, the production models are refit on all completed sessions for their season. The current session is used only to build live inputs.</p>
       <p><strong>Accuracy</strong> uses a 50% cutoff. <strong>Brier</strong> measures probability error. <strong>ECE</strong> measures calibration. <strong>AUC</strong> measures how well likely clears are ranked above likely misses.</p>
       <h3>Baselines</h3>

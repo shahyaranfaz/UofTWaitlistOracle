@@ -108,9 +108,10 @@ the two production models are refit on all completed sessions available to
 their season. The current session is used only to construct live prediction
 inputs.
 
-Position rows are weighted so that every lecture-section day contributes equal
-total weight. This prevents a large queue from dominating training or scoring
-simply because it creates more possible rank rows.
+After sampling, position rows are renormalized so every retained lecture
+offering contributes total weight 1 and each retained day contributes equally
+within that offering. This prevents large queues, longer collection histories,
+or random differences in retained rows from dominating training or scoring.
 
 Four metrics capture different parts of performance:
 
