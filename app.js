@@ -82,8 +82,10 @@ async function loadLectures(code) {
     }).join("");
     lectureInput.placeholder = lectures.length ? "CHOOSE LECTURE" : "NO LECTURES FOUND";
     lectureInput.disabled = !lectures.length;
+    return lectures;
   } catch {
     lectureInput.placeholder = "LECTURES UNAVAILABLE";
+    return [];
   }
 }
 
@@ -459,6 +461,15 @@ function renderError(error) {
   results.scrollIntoView({ behavior: "smooth" });
 }
 
+function updateShareUrl(code, lecture, position) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.searchParams.set("crs", code);
+  url.searchParams.set("lec", lecture);
+  url.searchParams.set("rnk", String(position));
+  history.replaceState(null, "", url);
+}
+
 form.addEventListener("submit", async event => {
   event.preventDefault();
   const button = form.querySelector("button");
@@ -472,13 +483,32 @@ form.addEventListener("submit", async event => {
   }
   button.disabled = true;
   button.querySelector("span").textContent = "Reading history…";
-  try { renderEstimate(code, lecture, position, await estimate(code, lecture, position)); }
+  try {
+    renderEstimate(code, lecture, position, await estimate(code, lecture, position));
+    updateShareUrl(code, lecture, position);
+  }
   catch (error) { renderError(error); }
   finally { button.disabled = false; button.querySelector("span").textContent = "Ask the Oracle"; }
 });
 
+async function restoreSharedEstimate() {
+  const params = new URLSearchParams(window.location.search);
+  const code = (params.get("crs") ?? "").trim().toUpperCase().replace(/\s/g, "");
+  const lecture = (params.get("lec") ?? "").trim().toUpperCase();
+  const position = Number(params.get("rnk"));
+  if (!code || !lecture || !Number.isInteger(position) || position < 1) return;
+
+  courseInput.value = code;
+  const lectures = await loadLectures(code);
+  if (!lectures.some(meeting => meeting.meetingNumber === lecture)) return;
+
+  chooseLecture(lecture);
+  form.position.value = position;
+  form.requestSubmit();
+}
+
 loadModel();
-loadCourseOptions();
+loadCourseOptions().then(restoreSharedEstimate);
 
 const methodologyDialog = document.querySelector("#methodology-dialog");
 document.querySelector("#methodology-open").addEventListener("click", () => methodologyDialog.showModal());
