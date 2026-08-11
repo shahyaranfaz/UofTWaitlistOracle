@@ -10,6 +10,7 @@ const lectureList = document.querySelector("#lecture-options");
 let courseOptions = [];
 let activeOption = -1;
 let modelPromise;
+const jsonCache = new Map();
 
 const campusDigit = code => code.match(/[HY]([135])[FSY]$/)?.[1] ?? "1";
 const campusFaculty = code => campusDigit(code) === "3" ? "SCAR" : campusDigit(code) === "5" ? "ERIN" : "ARTSC";
@@ -19,10 +20,20 @@ const getTerm = code => code.at(-1);
 // Summer sessions reuse the fall/winter fields for their first/second subsessions.
 const deadlineKey = code => getTerm(code) === "S" ? "winterWaitlistClosed" : "fallWaitlistClosed";
 
-async function fetchJson(path) {
-  const response = await fetch(`${DATA_ROOT}/${path}`);
-  if (!response.ok) throw new Error(`${response.status}`);
-  return response.json();
+function fetchJson(path) {
+  if (!jsonCache.has(path)) {
+    const request = fetch(`${DATA_ROOT}/${path}`)
+      .then(response => {
+        if (!response.ok) throw new Error(`${response.status}`);
+        return response.json();
+      })
+      .catch(error => {
+        jsonCache.delete(path);
+        throw error;
+      });
+    jsonCache.set(path, request);
+  }
+  return jsonCache.get(path);
 }
 
 function loadModel() {
@@ -466,6 +477,7 @@ form.addEventListener("submit", async event => {
   finally { button.disabled = false; button.querySelector("span").textContent = "Ask the Oracle"; }
 });
 
+loadModel();
 loadCourseOptions();
 
 const methodologyDialog = document.querySelector("#methodology-dialog");
