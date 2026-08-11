@@ -42,13 +42,12 @@ day to the waitlist deadline reaches that rank.
 
 ### Model
 
-The Oracle uses separate L2-regularized logistic regression models for
-Fall/Winter and Summer. Missing numeric values are filled with zero, then the
-numeric features are standardized. Course, campus, and term are one-hot encoded,
-with rare values grouped. The selected regularization strength is `C = 3`. No
-post-hoc probability calibration is applied.
+The Oracle uses separate histogram gradient-boosted tree models for
+Fall/Winter and Summer. Each ensemble contains 200 small trees with at most 15
+leaves. Missing numeric values are filled with the training median. No post-hoc
+probability calibration is applied.
 
-The production model has 21 numeric features and three categorical features:
+The production model has 26 numeric features:
 
 - **Rank:** raw rank, rank divided by capacity, and rank divided by current
   waitlist size
@@ -61,11 +60,21 @@ The production model has 21 numeric features and three categorical features:
 - **Movement:** observed movement over three days, observed movement over seven
   days, and seven-day movement velocity
 - **Interactions:** rank-to-capacity and waitlist-to-capacity near the deadline,
-  plus second-term and Summer subsession timing effects
-- **Context:** course code, campus, and course term
+  plus an indicator for ranks above 30% of capacity
+- **Context:** campus and course-term indicators, including their near-deadline
+  interactions
 
 Lecture selection determines the live capacity, queue, and movement inputs.
 Lecture identifiers such as `LEC0101` are not themselves predictors.
+
+### Understanding Driven by
+
+The **Driven by** list is a local explanation of the displayed estimate. For
+each feature group, the browser calculates the prediction again after replacing
+that group's values with their training medians. A `+` means the entered case
+raises the estimate relative to those typical values, while a `−` means it
+lowers it. Because trees contain interactions, these effects do not need to add
+up to the displayed percentage and should not be interpreted as causal.
 
 ### Training and validation
 
@@ -111,14 +120,20 @@ Four metrics capture different parts of performance:
 
 ## Benchmark against simple rules
 
+The complete benchmark calculation, fold-level results, and figure generation
+are available in
+[Notebook 7](notebooks/v1/07_production_benchmark.ipynb). The full modelling
+sequence is documented in the
+[version 1 notebook guide](notebooks/v1/README.md).
+
 The Oracle is compared with three understandable baselines:
 
-- **Capacity-only curve:** a softened version of the 10% heuristic. It learns a
-  probability using only waitlist rank divided by lecture capacity.
 - **Historical percentage:** how often the same rank cleared in previous
   lectures of the course at the equivalent date.
 - **Literal 10% rule:** predicts clear when rank is no more than 10% of lecture
   capacity.
+- **Boosted 10% rule:** a fitted probability curve that still uses only
+  waitlist rank divided by lecture capacity.
 
 All four methods are scored on the same rows. The historical baseline has exact
 rank evidence for 61.9% of Fall/Winter validation weight and 53.9% of Summer
@@ -127,30 +142,30 @@ validation weight.
 | Season      |                Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|----------------------:|----------:|-----------:|-----------:|-----------:|
 | Fall/Winter |          Oracle model | **94.2%** | **0.0427** | **0.0117** | **0.9597** |
-| Fall/Winter |   Capacity-only curve |     89.7% |     0.0882 |     0.0251 |     0.6715 |
 | Fall/Winter | Historical percentage |     89.4% |     0.0995 |     0.0901 |     0.6813 |
 | Fall/Winter |      Literal 10% rule |     71.6% |     0.2843 |     0.2843 |     0.6366 |
+| Fall/Winter |      Boosted 10% rule |     89.7% |     0.0882 |     0.0251 |     0.6715 |
 | Summer      |          Oracle model | **94.6%** | **0.0414** |     0.0234 | **0.9517** |
-| Summer      |   Capacity-only curve |     92.1% |     0.0711 | **0.0157** |     0.6868 |
 | Summer      | Historical percentage |     92.9% |     0.0669 |     0.0632 |     0.6754 |
 | Summer      |      Literal 10% rule |     74.1% |     0.2590 |     0.2590 |     0.6477 |
+| Summer      |      Boosted 10% rule |     92.1% |     0.0711 | **0.0157** |     0.6868 |
 
 ![Oracle model versus simple waitlist baselines](docs/assets/model-baseline-benchmark.png)
 
 ![Probability error across chronological holdouts](docs/assets/model-chronological-benchmark.png)
 
-The Oracle reduced the mean Brier error by 51.5% against the capacity-only 
-curve, 57.1% against the historical percentage, and 85.0% against the literal 
+The Oracle reduced the mean Brier error by 51.5% against the boosted 10%
+rule, 57.1% against the historical percentage, and 85.0% against the literal
 10% rule in Fall/Winter. The Summer reductions were 41.8%, 38.2%, and 84.0%. It
 also had the best Brier score in every chronological holdout.
 
 ### Production inference
 
-The exported model bundle contains the numeric preprocessing values,
-categorical weights, regression coefficients, and intercepts. The browser
-reconstructs the selected lecture's live features and evaluates the model
-locally. Historical outcomes are fetched separately and shown as evidence. They
-do not change the model percentage.
+The exported model bundle contains the numeric imputation values, ensemble
+baseline log-odds, and every tree split and leaf value. The browser reconstructs
+the selected lecture's live features and traverses the trees locally. Historical
+outcomes are fetched separately and shown as evidence. They do not change the
+model percentage.
 
 ### Limitations
 

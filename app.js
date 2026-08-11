@@ -37,7 +37,7 @@ function fetchJson(path) {
 }
 
 function loadModel() {
-  modelPromise ??= fetch("model/oracle-model.json")
+  modelPromise ??= fetch("model/oracle-model.json?v=5")
     .then(response => {
       if (!response.ok) throw new Error(`Model ${response.status}`);
       return response.json();
@@ -246,6 +246,8 @@ function modelFeatures(code, current, meeting, position) {
   const days = current.daysRemaining;
   const near7 = days <= 7 ? 1 : 0;
   const secondSubsession = getTerm(code) === "S" ? 1 : 0;
+  const campus = campusFaculty(code);
+  const term = getTerm(code) === "F" ? "fall" : getTerm(code) === "S" ? "winter" : "full_year";
   const positionToCapacity = capacity ? position / capacity : 0;
   const waitlistToCapacity = capacity ? waitlist / capacity : 0;
   return {
@@ -270,9 +272,16 @@ function modelFeatures(code, current, meeting, position) {
     second_subsession_near_7d: secondSubsession * near7,
     position_ratio_near_7d: positionToCapacity * near7,
     waitlist_ratio_near_7d: waitlistToCapacity * near7,
+    rank_over_30pct: Number(positionToCapacity > 0.30),
+    campus_erin: Number(campus === "ERIN"),
+    campus_scar: Number(campus === "SCAR"),
+    term_winter: Number(term === "winter"),
+    term_full_year: Number(term === "full_year"),
+    winter_near_7d: Number(term === "winter") * near7,
+    scar_near_7d: Number(campus === "SCAR") * near7,
     course_code: code,
-    campus: campusFaculty(code),
-    term: getTerm(code) === "F" ? "fall" : getTerm(code) === "S" ? "winter" : "full_year"
+    campus,
+    term
   };
 }
 
@@ -296,6 +305,23 @@ function applyCalibration(probability, calibration) {
 }
 
 function predictModel(model, features) {
+  if (model.trees) {
+    const values = model.numeric_features.map((feature, index) =>
+      Number.isFinite(features[feature]) ? features[feature] : model.imputation_values[index]
+    );
+    let score = model.baseline_log_odds;
+    model.trees.forEach(tree => {
+      let index = 0;
+      while (!tree[index].leaf) {
+        const node = tree[index];
+        const value = values[node.feature];
+        const goLeft = Number.isNaN(value) ? node.missing_left : value <= node.threshold;
+        index = goLeft ? node.left : node.right;
+      }
+      score += tree[index].value;
+    });
+    return applyCalibration(1 / (1 + Math.exp(-score)), model.calibration);
+  }
   let score = model.intercept;
   model.numeric_features.forEach((feature, index) => {
     const value = Number.isFinite(features[feature]) ? features[feature] : 0;
@@ -314,7 +340,7 @@ function predictModel(model, features) {
 const DRIVER_GROUPS = {
   rank: {
     label: "Rank percentile",
-    features: ["position_to_capacity", "position", "position_to_waitlist", "position_ratio_near_7d"]
+    features: ["position_to_capacity", "position", "position_to_waitlist", "position_ratio_near_7d", "rank_over_30pct"]
   },
   waitlist: {
     label: "Waitlist size",
@@ -333,10 +359,10 @@ const DRIVER_GROUPS = {
     features: ["capacity", "capacity_changed_7d"]
   },
   course: { label: "Course history", features: ["course_code"] },
-  campus: { label: "Campus context", features: ["campus"] },
+  campus: { label: "Campus context", features: ["campus", "campus_erin", "campus_scar", "scar_near_7d"] },
   term: {
     label: "Course term",
-    features: ["term", "second_subsession_days", "second_subsession_near_7d"]
+    features: ["term", "second_subsession_days", "second_subsession_near_7d", "term_winter", "term_full_year", "winter_near_7d"]
   }
 };
 
@@ -355,6 +381,21 @@ function categoricalContribution(model, feature, value) {
 }
 
 function modelDrivers(model, features) {
+  if (model.trees) {
+    const probability = predictModel(model, features);
+    const ranked = Object.entries(DRIVER_GROUPS).map(([group, definition]) => {
+      const counterfactual = {...features};
+      definition.features.forEach(feature => {
+        const index = model.numeric_features.indexOf(feature);
+        if (index >= 0) counterfactual[feature] = model.imputation_values[index];
+      });
+      const contribution = probability - predictModel(model, counterfactual);
+      return {label: definition.label, contribution, magnitude: Math.abs(contribution)};
+    }).sort((left, right) => right.magnitude - left.magnitude);
+    const thirdMagnitude = ranked[2]?.magnitude ?? 0;
+    const closeThreshold = Math.max(0.005, thirdMagnitude * 0.70);
+    return ranked.filter((driver, index) => index < 3 || (index < 7 && driver.magnitude >= closeThreshold));
+  }
   const totals = Object.fromEntries(Object.keys(DRIVER_GROUPS).map(group => [group, 0]));
   model.numeric_features.forEach((feature, index) => {
     const value = Number.isFinite(features[feature]) ? features[feature] : 0;

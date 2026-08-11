@@ -68,18 +68,20 @@
       <p>The public archive provides enrollment demand, section capacity, capacity changes, and collection timestamps. Queue size is inferred as <code>max(enrollment demand − section capacity, 0)</code>. Offerings are aligned by days before the applicable waitlist deadline.</p>
       <p>Each training row represents one rank in one lecture on one observed day. The row is labelled cleared when cumulative observed queue movement from that day to the deadline reaches that rank. Capacity increases count as queue movement.</p>
       <h3>Model</h3>
-      <p>The Oracle uses separate L2-regularized logistic regression models for Fall/Winter and Summer. Missing numeric values are filled with zero and standardized. Course, campus, and term are one-hot encoded with rare values grouped. The selected regularization strength is <code>C = 3</code>. No post-hoc calibration is applied.</p>
-      <p>The model uses 21 numeric features and three categorical features:</p>
+      <p>The Oracle uses separate histogram gradient-boosted tree models for Fall/Winter and Summer. Each ensemble contains 200 small trees with at most 15 leaves. Missing numeric values are filled with the training median. No post-hoc calibration is applied.</p>
+      <p>The model uses 26 numeric features:</p>
       <ul class="methodology-features">
         <li><strong>Rank:</strong> raw rank, rank divided by capacity, and rank divided by waitlist size</li>
         <li><strong>Queue:</strong> raw size, log size, and queue divided by capacity</li>
         <li><strong>Capacity:</strong> section capacity and recent capacity changes</li>
         <li><strong>Time:</strong> days remaining, squared days, and piecewise seven, fourteen, and sixty-day effects</li>
         <li><strong>Movement:</strong> observed three-day and seven-day movement plus seven-day velocity</li>
-        <li><strong>Interactions:</strong> rank and queue ratios near the deadline plus second-term and Summer subsession timing</li>
-        <li><strong>Context:</strong> course code, campus, and course term</li>
+        <li><strong>Interactions:</strong> rank and queue ratios near the deadline plus an indicator for ranks above 30% of capacity</li>
+        <li><strong>Context:</strong> campus and course-term indicators, including their near-deadline interactions</li>
       </ul>
       <p>The selected lecture supplies live queue, capacity, and movement inputs. A lecture identifier such as <code>LEC0101</code> is not a feature.</p>
+      <h3>Understanding Driven by</h3>
+      <p>The <strong>Driven by</strong> list is a local explanation of the displayed estimate. For each feature group, the browser calculates the prediction again after replacing that group’s values with their training medians. A <code>+</code> means the entered case raises the estimate relative to those typical values, while a <code>−</code> means it lowers it. Because trees contain interactions, these effects do not need to add up to the displayed percentage and should not be interpreted as causal.</p>
       <h3>Training and validation</h3>
       <p>The archive covers completed sessions from 2022 through Summer 2026. Validation follows time rather than randomly mixing rows. Each fold trains on all earlier sessions and predicts the next one:</p>
       <div class="methodology-table-wrap"><table>
@@ -93,32 +95,33 @@
           <tr><td>Summer</td><td>2023–2025</td><td>2026</td></tr>
         </tbody>
       </table></div>
-      <p>No validation rows enter that fold's model fit, preprocessing values, category encoding, or capacity-only baseline fit. Metrics are calculated per holdout and averaged across the three folds for each season. Each lecture-section day receives equal total weight so large queues do not dominate.</p>
+      <p>No validation rows enter that fold's model fit, preprocessing values, or capacity-only baseline fit. Metrics are calculated per holdout and averaged across the three folds for each season. Each lecture-section day receives equal total weight so large queues do not dominate.</p>
       <p>After the model and feature choices are complete, the production models are refit on all completed sessions for their season. The current session is used only to build live inputs.</p>
       <p><strong>Accuracy</strong> uses a 50% cutoff. <strong>Brier</strong> measures probability error. <strong>ECE</strong> measures calibration. <strong>AUC</strong> measures how well likely clears are ranked above likely misses.</p>
       <h3>Baselines</h3>
-      <p>The <strong>capacity-only curve</strong> is a softened 10% heuristic using only rank divided by capacity. The <strong>historical percentage</strong> is how often the same rank cleared in earlier lectures at the equivalent date. The <strong>literal 10% rule</strong> predicts clear when rank is no more than 10% of capacity. All methods are scored on the same historical-comparable rows. That subset covers 61.9% of Fall/Winter validation weight and 53.9% of Summer validation weight.</p>
+      <p>The <strong>historical percentage</strong> is how often the same rank cleared in earlier lectures at the equivalent date. The <strong>literal 10% rule</strong> predicts clear when rank is no more than 10% of capacity. The <strong>boosted 10% rule</strong> is a fitted probability curve that still uses only rank divided by capacity. All methods are scored on the same historical-comparable rows. That subset covers 61.9% of Fall/Winter validation weight and 53.9% of Summer validation weight.</p>
       <div class="methodology-table-wrap"><table>
         <thead><tr><th>Season</th><th>Method</th><th>Accuracy</th><th>Brier</th><th>ECE</th><th>AUC</th></tr></thead>
         <tbody>
-          <tr><td>Fall/Winter</td><td>Oracle</td><td><strong>94.2%</strong></td><td><strong>0.0427</strong></td><td><strong>0.0117</strong></td><td><strong>0.9597</strong></td></tr>
-          <tr><td>Fall/Winter</td><td>Capacity-only curve</td><td>89.7%</td><td>0.0882</td><td>0.0251</td><td>0.6715</td></tr>
+          <tr><td>Fall/Winter</td><td>Oracle model</td><td><strong>94.2%</strong></td><td><strong>0.0427</strong></td><td><strong>0.0117</strong></td><td><strong>0.9597</strong></td></tr>
           <tr><td>Fall/Winter</td><td>Historical percentage</td><td>89.4%</td><td>0.0995</td><td>0.0901</td><td>0.6813</td></tr>
           <tr><td>Fall/Winter</td><td>Literal 10% rule</td><td>71.6%</td><td>0.2843</td><td>0.2843</td><td>0.6366</td></tr>
-          <tr><td>Summer</td><td>Oracle</td><td><strong>94.6%</strong></td><td><strong>0.0414</strong></td><td>0.0234</td><td><strong>0.9517</strong></td></tr>
-          <tr><td>Summer</td><td>Capacity-only curve</td><td>92.1%</td><td>0.0711</td><td><strong>0.0157</strong></td><td>0.6868</td></tr>
+          <tr><td>Fall/Winter</td><td>Boosted 10% rule</td><td>89.7%</td><td>0.0882</td><td>0.0251</td><td>0.6715</td></tr>
+          <tr><td>Summer</td><td>Oracle model</td><td><strong>94.6%</strong></td><td><strong>0.0414</strong></td><td>0.0234</td><td><strong>0.9517</strong></td></tr>
           <tr><td>Summer</td><td>Historical percentage</td><td>92.9%</td><td>0.0669</td><td>0.0632</td><td>0.6754</td></tr>
           <tr><td>Summer</td><td>Literal 10% rule</td><td>74.1%</td><td>0.2590</td><td>0.2590</td><td>0.6477</td></tr>
+          <tr><td>Summer</td><td>Boosted 10% rule</td><td>92.1%</td><td>0.0711</td><td><strong>0.0157</strong></td><td>0.6868</td></tr>
         </tbody>
       </table></div>
-      <p>The Oracle cut Brier error by 51.5% against the capacity-only curve, 57.1% against history, and 85.0% against the 10% rule in Fall/Winter. Summer reductions were 41.8%, 38.2%, and 84.0%. It had the best Brier score in every chronological holdout.</p>
+      <p>The Oracle cut Brier error by 51.5% against the boosted 10% rule, 57.1% against history, and 85.0% against the literal 10% rule in Fall/Winter. Summer reductions were 41.8%, 38.2%, and 84.0%. It had the best Brier score in every chronological holdout.</p>
+      <p>The complete benchmark calculations, chronological fold results, and figure generation are available in <a href="https://github.com/shahyaranfaz/UofTWaitlistOracle/blob/master/notebooks/v1/07_production_benchmark.ipynb" target="_blank" rel="noreferrer">Notebook 7</a>.</p>
       <h3>Production and limitations</h3>
-      <p>The exported coefficients and preprocessing values run locally in the browser. Historical outcomes are fetched and displayed separately. They do not change the model percentage.</p>
+      <p>The exported tree splits, leaf values, and preprocessing medians run locally in the browser. Historical outcomes are fetched and displayed separately. They do not change the model percentage.</p>
       <p>Clearance is inferred from snapshots rather than student records, so movement between snapshots can be missed. Scheduling, reserved seats, and student behaviour can change between years. Summer has fewer comparable observations and should be treated with more caution.</p>
       <h3>Source</h3>
       <p>Enrollment history is maintained by <a href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">ICPRplshelp</a> and originates from U of T’s public timetable builder.</p>
     </div>
   </dialog>
-  <script type="module" src="app.js?v=20"></script>
+  <script type="module" src="app.js?v=21"></script>
 </body>
 </html>
