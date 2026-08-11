@@ -61,7 +61,7 @@ The production model has 21 numeric features and three categorical features:
 - **Movement:** observed movement over three days, observed movement over seven
   days, and seven-day movement velocity
 - **Interactions:** rank-to-capacity and waitlist-to-capacity near the deadline,
-  plus Winter second-subsession timing effects
+  plus second-term and Summer subsession timing effects
 - **Context:** course code, campus, and course term
 
 Lecture selection determines the live capacity, queue, and movement inputs.

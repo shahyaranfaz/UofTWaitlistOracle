@@ -76,7 +76,7 @@
         <li><strong>Capacity:</strong> section capacity and recent capacity changes</li>
         <li><strong>Time:</strong> days remaining, squared days, and piecewise seven, fourteen, and sixty-day effects</li>
         <li><strong>Movement:</strong> observed three-day and seven-day movement plus seven-day velocity</li>
-        <li><strong>Interactions:</strong> rank and queue ratios near the deadline plus Winter subsession timing</li>
+        <li><strong>Interactions:</strong> rank and queue ratios near the deadline plus second-term and Summer subsession timing</li>
         <li><strong>Context:</strong> course code, campus, and course term</li>
       </ul>
       <p>The selected lecture supplies live queue, capacity, and movement inputs. A lecture identifier such as <code>LEC0101</code> is not a feature.</p>
@@ -93,11 +93,11 @@
           <tr><td>Summer</td><td>2023–2025</td><td>2026</td></tr>
         </tbody>
       </table></div>
-      <p>No validation rows enter that fold's model fit, preprocessing values, category encoding, or capacity-only baseline. Metrics are calculated per holdout and averaged across the three folds for each season. Each lecture-section day receives equal total weight so large queues do not dominate.</p>
+      <p>No validation rows enter that fold's model fit, preprocessing values, category encoding, or capacity-only baseline fit. Metrics are calculated per holdout and averaged across the three folds for each season. Each lecture-section day receives equal total weight so large queues do not dominate.</p>
       <p>After the model and feature choices are complete, the production models are refit on all completed sessions for their season. The current session is used only to build live inputs.</p>
       <p><strong>Accuracy</strong> uses a 50% cutoff. <strong>Brier</strong> measures probability error. <strong>ECE</strong> measures calibration. <strong>AUC</strong> measures how well likely clears are ranked above likely misses.</p>
       <h3>Baselines</h3>
-      <p>The <strong>capacity-only curve</strong> is a softened 10% heuristic using only rank divided by capacity. The <strong>historical percentage</strong> is how often the same rank cleared in earlier lectures at the equivalent date. The <strong>literal 10% rule</strong> predicts clear when rank is no more than 10% of capacity. All methods are scored on the same historical-comparable rows.</p>
+      <p>The <strong>capacity-only curve</strong> is a softened 10% heuristic using only rank divided by capacity. The <strong>historical percentage</strong> is how often the same rank cleared in earlier lectures at the equivalent date. The <strong>literal 10% rule</strong> predicts clear when rank is no more than 10% of capacity. All methods are scored on the same historical-comparable rows. That subset covers 61.9% of Fall/Winter validation weight and 53.9% of Summer validation weight.</p>
       <div class="methodology-table-wrap"><table>
         <thead><tr><th>Season</th><th>Method</th><th>Accuracy</th><th>Brier</th><th>ECE</th><th>AUC</th></tr></thead>
         <tbody>
