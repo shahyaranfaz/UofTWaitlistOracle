@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=16">
+  <link rel="stylesheet" href="styles.css?v=17">
 </head>
 <body>
   <div class="noise"></div>
@@ -64,21 +64,58 @@
     </div>
     <div class="methodology-content">
       <p>The Oracle estimates whether a particular waitlist rank will clear for a selected U of T lecture. It runs entirely in the browser and is not an official forecast or academic advice.</p>
-      <h3>Reconstructing waitlists</h3>
-      <p>The public archive provides enrollment demand, section capacity, capacity changes, and collection timestamps. Queue size is inferred as <code>max(enrollment demand − section capacity, 0)</code>. Offerings are aligned by days remaining before the applicable waitlist deadline.</p>
-      <h3>Defining clearance</h3>
-      <p>Because students are not identified, clearance is inferred from cumulative observed downward waitlist changes after each snapshot. Capacity increases also advance the queue. Movement occurring entirely between collector snapshots may be missed.</p>
-      <h3>The model</h3>
-      <p>Separate regularized logistic models are used for Fall/Winter and Summer. Inputs include rank, queue size, section capacity, capacity-relative ratios, days remaining, recent three- and seven-day movement, capacity changes, course, campus, term, and near-deadline interactions. Lecture selection supplies the live inputs. The lecture number is not itself a predictor.</p>
-      <h3>Chronological validation</h3>
-      <p>Each validation session is predicted using only earlier sessions. The primary metric is Brier error, where lower is better.</p>
-      <p>The <strong>10% rule</strong> assumes a rank will clear when it is no more than 10% of the lecture’s capacity. The <strong>historical percentage</strong> is how often that same rank cleared in earlier lectures of the course at the same point in the enrollment period.</p>
+      <h3>Data and target</h3>
+      <p>The public archive provides enrollment demand, section capacity, capacity changes, and collection timestamps. Queue size is inferred as <code>max(enrollment demand − section capacity, 0)</code>. Offerings are aligned by days before the applicable waitlist deadline.</p>
+      <p>Each training row represents one rank in one lecture on one observed day. The row is labelled cleared when cumulative observed queue movement from that day to the deadline reaches that rank. Capacity increases count as queue movement.</p>
+      <h3>Model</h3>
+      <p>The Oracle uses separate L2-regularized logistic regression models for Fall/Winter and Summer. Missing numeric values are filled with zero and standardized. Course, campus, and term are one-hot encoded with rare values grouped. The selected regularization strength is <code>C = 3</code>. No post-hoc calibration is applied.</p>
+      <p>The model uses 21 numeric features and three categorical features:</p>
+      <ul class="methodology-features">
+        <li><strong>Rank:</strong> raw rank, rank divided by capacity, and rank divided by waitlist size</li>
+        <li><strong>Queue:</strong> raw size, log size, and queue divided by capacity</li>
+        <li><strong>Capacity:</strong> section capacity and recent capacity changes</li>
+        <li><strong>Time:</strong> days remaining, squared days, and piecewise seven, fourteen, and sixty-day effects</li>
+        <li><strong>Movement:</strong> observed three-day and seven-day movement plus seven-day velocity</li>
+        <li><strong>Interactions:</strong> rank and queue ratios near the deadline plus Winter subsession timing</li>
+        <li><strong>Context:</strong> course code, campus, and course term</li>
+      </ul>
+      <p>The selected lecture supplies live queue, capacity, and movement inputs. A lecture identifier such as <code>LEC0101</code> is not a feature.</p>
+      <h3>Training and validation</h3>
+      <p>The archive covers completed sessions from 2022 through Summer 2026. Validation follows time rather than randomly mixing rows. Each fold trains on all earlier sessions and predicts the next one:</p>
       <div class="methodology-table-wrap"><table>
-        <thead><tr><th>Season</th><th>Oracle</th><th>History</th><th>10% rule</th></tr></thead>
-        <tbody><tr><td>Fall/Winter</td><td><strong>0.0427</strong></td><td>0.0995</td><td>0.2843</td></tr><tr><td>Summer</td><td><strong>0.0414</strong></td><td>0.0669</td><td>0.2590</td></tr></tbody>
+        <thead><tr><th>Model</th><th>Training sessions</th><th>Validation</th></tr></thead>
+        <tbody>
+          <tr><td>Fall/Winter</td><td>2022–2023</td><td>2023–2024</td></tr>
+          <tr><td>Fall/Winter</td><td>2022–2024</td><td>2024–2025</td></tr>
+          <tr><td>Fall/Winter</td><td>2022–2025</td><td>2025–2026</td></tr>
+          <tr><td>Summer</td><td>2023</td><td>2024</td></tr>
+          <tr><td>Summer</td><td>2023–2024</td><td>2025</td></tr>
+          <tr><td>Summer</td><td>2023–2025</td><td>2026</td></tr>
+        </tbody>
       </table></div>
-      <p>The Oracle reduced Brier error by 85.0% versus the 10% rule and 57.1% versus historical percentages in Fall/Winter. Summer reductions were 84.0% and 38.2%. Blending history into the model performed worse, so historical outcomes are shown as supporting evidence only.</p>
-      <h3>Data</h3>
+      <p>No validation rows enter that fold's model fit, preprocessing values, category encoding, or capacity-only baseline. Metrics are calculated per holdout and averaged across the three folds for each season. Each lecture-section day receives equal total weight so large queues do not dominate.</p>
+      <p>After the model and feature choices are complete, the production models are refit on all completed sessions for their season. The current session is used only to build live inputs.</p>
+      <p><strong>Accuracy</strong> uses a 50% cutoff. <strong>Brier</strong> measures probability error. <strong>ECE</strong> measures calibration. <strong>AUC</strong> measures how well likely clears are ranked above likely misses.</p>
+      <h3>Baselines</h3>
+      <p>The <strong>capacity-only curve</strong> is a softened 10% heuristic using only rank divided by capacity. The <strong>historical percentage</strong> is how often the same rank cleared in earlier lectures at the equivalent date. The <strong>literal 10% rule</strong> predicts clear when rank is no more than 10% of capacity. All methods are scored on the same historical-comparable rows.</p>
+      <div class="methodology-table-wrap"><table>
+        <thead><tr><th>Season</th><th>Method</th><th>Accuracy</th><th>Brier</th><th>ECE</th><th>AUC</th></tr></thead>
+        <tbody>
+          <tr><td>Fall/Winter</td><td>Oracle</td><td><strong>94.2%</strong></td><td><strong>0.0427</strong></td><td><strong>0.0117</strong></td><td><strong>0.9597</strong></td></tr>
+          <tr><td>Fall/Winter</td><td>Capacity-only curve</td><td>89.7%</td><td>0.0882</td><td>0.0251</td><td>0.6715</td></tr>
+          <tr><td>Fall/Winter</td><td>Historical percentage</td><td>89.4%</td><td>0.0995</td><td>0.0901</td><td>0.6813</td></tr>
+          <tr><td>Fall/Winter</td><td>Literal 10% rule</td><td>71.6%</td><td>0.2843</td><td>0.2843</td><td>0.6366</td></tr>
+          <tr><td>Summer</td><td>Oracle</td><td><strong>94.6%</strong></td><td><strong>0.0414</strong></td><td>0.0234</td><td><strong>0.9517</strong></td></tr>
+          <tr><td>Summer</td><td>Capacity-only curve</td><td>92.1%</td><td>0.0711</td><td><strong>0.0157</strong></td><td>0.6868</td></tr>
+          <tr><td>Summer</td><td>Historical percentage</td><td>92.9%</td><td>0.0669</td><td>0.0632</td><td>0.6754</td></tr>
+          <tr><td>Summer</td><td>Literal 10% rule</td><td>74.1%</td><td>0.2590</td><td>0.2590</td><td>0.6477</td></tr>
+        </tbody>
+      </table></div>
+      <p>The Oracle cut Brier error by 51.5% against the capacity-only curve, 57.1% against history, and 85.0% against the 10% rule in Fall/Winter. Summer reductions were 41.8%, 38.2%, and 84.0%. It had the best Brier score in every chronological holdout.</p>
+      <h3>Production and limitations</h3>
+      <p>The exported coefficients and preprocessing values run locally in the browser. Historical outcomes are fetched and displayed separately. They do not change the model percentage.</p>
+      <p>Clearance is inferred from snapshots rather than student records, so movement between snapshots can be missed. Scheduling, reserved seats, and student behaviour can change between years. Summer has fewer comparable observations and should be treated with more caution.</p>
+      <h3>Source</h3>
       <p>Enrollment history is maintained by <a href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">ICPRplshelp</a> and originates from U of T’s public timetable builder.</p>
     </div>
   </dialog>

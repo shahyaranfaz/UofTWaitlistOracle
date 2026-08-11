@@ -36,73 +36,133 @@ This is a conservative proxy: movement that occurs entirely between collector
 snapshots cannot be observed. Capacity increases count as queue advancement
 because they create seats for students already waiting.
 
+Each training row represents one waitlist rank in one lecture on one observed
+day. Its target is `cleared` when cumulative observed queue movement from that
+day to the waitlist deadline reaches that rank.
+
 ### Model
 
-The Oracle uses separate L2-regularized logistic models for Fall/Winter and 
-Summer. Inputs include:
+The Oracle uses separate L2-regularized logistic regression models for
+Fall/Winter and Summer. Missing numeric values are filled with zero, then the
+numeric features are standardized. Course, campus, and term are one-hot encoded,
+with rare values grouped. The selected regularization strength is `C = 3`. No
+post-hoc probability calibration is applied.
 
-- waitlist rank and current queue size
-- rank and queue size relative to section capacity
-- days remaining and piecewise near-deadline effects
-- movement over the preceding three and seven days
-- section capacity and recent capacity changes
-- course code, campus, and course term
-- near-deadline interactions with queue ratios and Summer subsession
+The production model has 21 numeric features and three categorical features:
+
+- **Rank:** raw rank, rank divided by capacity, and rank divided by current
+  waitlist size
+- **Queue:** raw waitlist size, log waitlist size, and waitlist divided by
+  capacity
+- **Capacity:** section capacity and whether capacity changed in the previous
+  seven days
+- **Time:** days before the waitlist deadline, squared days, a seven-day flag,
+  days below seven, days below fourteen, and days beyond sixty
+- **Movement:** observed movement over three days, observed movement over seven
+  days, and seven-day movement velocity
+- **Interactions:** rank-to-capacity and waitlist-to-capacity near the deadline,
+  plus Winter second-subsession timing effects
+- **Context:** course code, campus, and course term
 
 Lecture selection determines the live capacity, queue, and movement inputs.
 Lecture identifiers such as `LEC0101` are not themselves predictors.
 
-### Validation
+### Training and validation
 
-Evaluation is chronological and season-specific: each validation session is
-predicted using only earlier completed sessions from the same enrollment
-calendar. Position rows are weighted so that each lecture-section day
-contributes equal total weight, preventing large queues from dominating the 
-results.
+The archive covers completed Fall/Winter and Summer sessions from 2022 through
+Summer 2026. Evaluation uses rolling-origin validation rather than a random
+train/test split. There are six holdouts, three per season:
 
-The primary metric is Brier score, which measures probability error and rewards
-calibration as well as discrimination. Lower is better. Expected calibration
-error (ECE) is also lower-is-better. ROC AUC is higher-is-better.
+| Model       | Training sessions | Validation session |
+|-------------|------------------:|-------------------:|
+| Fall/Winter |         2022–2023 |          2023–2024 |
+| Fall/Winter |         2022–2024 |          2024–2025 |
+| Fall/Winter |         2022–2025 |          2025–2026 |
+| Summer      |              2023 |               2024 |
+| Summer      |         2023–2024 |               2025 |
+| Summer      |         2023–2025 |               2026 |
 
-| Model                      | Mean Brier | Worst-fold Brier | Mean ECE | Mean ROC AUC |
-|----------------------------|-----------:|-----------------:|---------:|-------------:|
-| Fall/Winter seasonal model |     0.0483 |           0.0519 |   0.0124 |       0.9557 |
-| Summer seasonal model      |     0.0466 |           0.0571 |   0.0280 |       0.9478 |
+Each fold adds the previous validation session to the next training set. The
+model therefore predicts a future session using only information that would
+have existed at that time. No rows from the validation session enter its
+training data, preprocessing statistics, category encoding, or capacity-only
+baseline fit.
 
-Fall/Winter performance is strong across the principal metrics. Summer is less
-stable close to the deadline: on the newest Summer holdout, the seven-day
-calibration gap was 20.1 percentage points. The application labels both models
-experimental and gives Summer estimates an additional warning.
+Metrics are calculated separately for each holdout and then averaged across
+the three folds in that season. After model and feature decisions are complete,
+the two production models are refit on all completed sessions available to
+their season. The current session is used only to construct live prediction
+inputs.
 
-## Why not just use the 10% rule?
+Position rows are weighted so that every lecture-section day contributes equal
+total weight. This prevents a large queue from dominating training or scoring
+simply because it creates more possible rank rows.
 
-The common “rank below 10% of class capacity” rule uses useful information, but
-it discards the actual queue, time remaining, recent movement, course history,
-and calendar. The model retains both absolute ranks and capacity-relative
-ratios rather than imposing a single cutoff.
+Four metrics capture different parts of performance:
 
-The production model was compared with both the literal 10% cutoff and the
-naive same-course historical percentage on six chronological holdouts. For a
-fair comparison with the historical method, every score below uses only rows
-for which at least one prior lecture had cached evidence for the exact rank.
-That subset covered 61.9% of Fall/Winter validation weight and 53.9% of Summer
+- **Accuracy** is the share of correct clear or not-clear predictions using a
+  50% cutoff.
+- **Brier score** measures the error in the probabilities themselves. Lower is
+  better.
+- **Expected calibration error (ECE)** measures whether stated probabilities
+  match observed outcomes. Lower is better.
+- **ROC AUC** measures how well a method ranks likely clears above likely
+  misses. Higher is better.
+
+## Benchmark against simple rules
+
+The Oracle is compared with three understandable baselines:
+
+- **Capacity-only curve:** a softened version of the 10% heuristic. It learns a
+  probability using only waitlist rank divided by lecture capacity.
+- **Historical percentage:** how often the same rank cleared in previous
+  lectures of the course at the equivalent date.
+- **Literal 10% rule:** predicts clear when rank is no more than 10% of lecture
+  capacity.
+
+All four methods are scored on the same rows. The historical baseline has exact
+rank evidence for 61.9% of Fall/Winter validation weight and 53.9% of Summer
 validation weight.
 
-| Season      | Method                | Mean Brier |   Mean ECE | Mean ROC AUC |
-|-------------|-----------------------|-----------:|-----------:|-------------:|
-| Fall/Winter | Oracle model          | **0.0427** | **0.0117** |   **0.9597** |
-| Fall/Winter | Historical percentage |     0.0995 |     0.0901 |       0.6813 |
-| Fall/Winter | 10% rule              |     0.2843 |     0.2843 |       0.6366 |
-| Summer      | Oracle model          | **0.0414** | **0.0234** |   **0.9517** |
-| Summer      | Historical percentage |     0.0669 |     0.0632 |       0.6754 |
-| Summer      | 10% rule              |     0.2590 |     0.2590 |       0.6477 |
+| Season      |                Method |  Accuracy |      Brier |        ECE |    ROC AUC |
+|-------------|----------------------:|----------:|-----------:|-----------:|-----------:|
+| Fall/Winter |          Oracle model | **94.2%** | **0.0427** | **0.0117** | **0.9597** |
+| Fall/Winter |   Capacity-only curve |     89.7% |     0.0882 |     0.0251 |     0.6715 |
+| Fall/Winter | Historical percentage |     89.4% |     0.0995 |     0.0901 |     0.6813 |
+| Fall/Winter |      Literal 10% rule |     71.6% |     0.2843 |     0.2843 |     0.6366 |
+| Summer      |          Oracle model | **94.6%** | **0.0414** |     0.0234 | **0.9517** |
+| Summer      |   Capacity-only curve |     92.1% |     0.0711 | **0.0157** |     0.6868 |
+| Summer      | Historical percentage |     92.9% |     0.0669 |     0.0632 |     0.6754 |
+| Summer      |      Literal 10% rule |     74.1% |     0.2590 |     0.2590 |     0.6477 |
 
-![Oracle model versus simple waitlist rules](docs/assets/model-baseline-benchmark.png)
+![Oracle model versus simple waitlist baselines](docs/assets/model-baseline-benchmark.png)
 
-On this common subset, the Oracle reduced the mean Brier error by 85.0% versus
-the 10% rule and 57.1% versus the historical percentage in Fall/Winter. The
-corresponding Summer reductions were 84.0% and 38.2%. The model won every
-chronological fold.
+![Probability error across chronological holdouts](docs/assets/model-chronological-benchmark.png)
+
+The Oracle reduced the mean Brier error by 51.5% against the capacity-only 
+curve, 57.1% against the historical percentage, and 85.0% against the literal 
+10% rule in Fall/Winter. The Summer reductions were 41.8%, 38.2%, and 84.0%. It
+also had the best Brier score in every chronological holdout.
+
+### Production inference
+
+The exported model bundle contains the numeric preprocessing values,
+categorical weights, regression coefficients, and intercepts. The browser
+reconstructs the selected lecture's live features and evaluates the model
+locally. Historical outcomes are fetched separately and shown as evidence. They
+do not change the model percentage.
+
+### Limitations
+
+- Queue size and clearance are inferred from collector snapshots rather than
+  individual student records.
+- Movement that happens entirely between snapshots can be missed.
+- Course scheduling, instructor changes, reserved seats, and student behavior
+  can shift between years.
+- Summer has fewer comparable observations and should be treated with more
+  caution.
+- The percentage is an estimate, not a guarantee or an official U of T
+  forecast.
 
 ## Historical evidence
 
