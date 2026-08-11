@@ -16,7 +16,10 @@
   <main class="shell">
     <header class="site-header">
       <a class="brand" href="#">UofT <span>Waitlist Oracle</span></a>
-      <a class="source-link" href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">Data source ↗</a>
+      <nav class="header-links" aria-label="Project information">
+        <button id="methodology-open" class="header-link" type="button">Methodology</button>
+        <a class="source-link" href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">Data source ↗</a>
+      </nav>
     </header>
 
     <section class="tool">
@@ -54,6 +57,31 @@
     <section id="results" class="results" hidden aria-live="polite"></section>
     <p class="disclaimer">Unofficial and not academic advice. Estimates use public enrollment history and are never a guarantee.</p>
   </main>
-  <script type="module" src="app.js?v=17"></script>
+  <dialog id="methodology-dialog" class="methodology-dialog" aria-labelledby="methodology-title">
+    <div class="methodology-header">
+      <div><span class="result-label">HOW THE ORACLE WORKS</span><h2 id="methodology-title">Methodology</h2></div>
+      <form method="dialog"><button class="dialog-close" aria-label="Close methodology">×</button></form>
+    </div>
+    <div class="methodology-content">
+      <p>The Oracle estimates whether a particular waitlist rank will clear for a selected U of T lecture. It runs entirely in the browser and is not an official forecast or academic advice.</p>
+      <h3>Reconstructing waitlists</h3>
+      <p>The public archive provides enrollment demand, section capacity, capacity changes, and collection timestamps. Queue size is inferred as <code>max(enrollment demand − section capacity, 0)</code>. Offerings are aligned by days remaining before the applicable waitlist deadline.</p>
+      <h3>Defining clearance</h3>
+      <p>Because students are not identified, clearance is inferred from cumulative observed downward waitlist changes after each snapshot. Capacity increases also advance the queue. Movement occurring entirely between collector snapshots may be missed.</p>
+      <h3>The model</h3>
+      <p>Separate regularized logistic models are used for Fall/Winter and Summer. Inputs include rank, queue size, section capacity, capacity-relative ratios, days remaining, recent three- and seven-day movement, capacity changes, course, campus, term, and near-deadline interactions. Lecture selection supplies the live inputs. The lecture number is not itself a predictor.</p>
+      <h3>Chronological validation</h3>
+      <p>Each validation session is predicted using only earlier sessions. The primary metric is Brier error, where lower is better.</p>
+      <p>The <strong>10% rule</strong> assumes a rank will clear when it is no more than 10% of the lecture’s capacity. The <strong>historical percentage</strong> is how often that same rank cleared in earlier lectures of the course at the same point in the enrollment period.</p>
+      <div class="methodology-table-wrap"><table>
+        <thead><tr><th>Season</th><th>Oracle</th><th>History</th><th>10% rule</th></tr></thead>
+        <tbody><tr><td>Fall/Winter</td><td><strong>0.0427</strong></td><td>0.0995</td><td>0.2843</td></tr><tr><td>Summer</td><td><strong>0.0414</strong></td><td>0.0669</td><td>0.2590</td></tr></tbody>
+      </table></div>
+      <p>The Oracle reduced Brier error by 85.0% versus the 10% rule and 57.1% versus historical percentages in Fall/Winter. Summer reductions were 84.0% and 38.2%. Blending history into the model performed worse, so historical outcomes are shown as supporting evidence only.</p>
+      <h3>Data</h3>
+      <p>Enrollment history is maintained by <a href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">ICPRplshelp</a> and originates from U of T’s public timetable builder.</p>
+    </div>
+  </dialog>
+  <script type="module" src="app.js?v=18"></script>
 </body>
 </html>

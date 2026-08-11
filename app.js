@@ -467,3 +467,9 @@ form.addEventListener("submit", async event => {
 });
 
 loadCourseOptions();
+
+const methodologyDialog = document.querySelector("#methodology-dialog");
+document.querySelector("#methodology-open").addEventListener("click", () => methodologyDialog.showModal());
+methodologyDialog.addEventListener("click", event => {
+  if (event.target === methodologyDialog) methodologyDialog.close();
+});
