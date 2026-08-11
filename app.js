@@ -9,6 +9,7 @@ const lectureValue = document.querySelector("#lecture");
 const lectureList = document.querySelector("#lecture-options");
 let courseOptions = [];
 let activeOption = -1;
+let modelPromise;
 
 const campusDigit = code => code.match(/[HY]([135])[FSY]$/)?.[1] ?? "1";
 const campusFaculty = code => campusDigit(code) === "3" ? "SCAR" : campusDigit(code) === "5" ? "ERIN" : "ARTSC";
@@ -22,6 +23,16 @@ async function fetchJson(path) {
   const response = await fetch(`${DATA_ROOT}/${path}`);
   if (!response.ok) throw new Error(`${response.status}`);
   return response.json();
+}
+
+function loadModel() {
+  modelPromise ??= fetch("model/oracle-model.json")
+    .then(response => {
+      if (!response.ok) throw new Error(`Model ${response.status}`);
+      return response.json();
+    })
+    .catch(() => null);
+  return modelPromise;
 }
 
 const courseMeta = code => {
@@ -166,14 +177,23 @@ function analyzeMeeting(course, meeting, deadline, daysRemaining, position) {
   const startIndex = snapshotAt(course, deadline, daysRemaining);
   const endIndex = snapshotAt(course, deadline, 0);
   const startTime = course.timeIntervals[startIndex];
-  const endTime = course.timeIntervals[endIndex];
   const startDemand = meeting.enrollmentLogs[startIndex] ?? 0;
-  const endDemand = meeting.enrollmentLogs[endIndex] ?? 0;
   const startWaitlist = Math.max(startDemand - capacityAt(meeting, startTime), 0);
-  const endWaitlist = Math.max(endDemand - capacityAt(meeting, endTime), 0);
   // A position that never existed in that offering is not evidence either way.
   if (startWaitlist < position) return null;
-  const movement = Math.max(startWaitlist - endWaitlist, 0);
+  // Count every visible downward change. Someone joining behind the student
+  // later must not erase queue movement that has already happened.
+  let movement = 0;
+  let previousWaitlist = startWaitlist;
+  const lastIndex = Math.min(endIndex, meeting.enrollmentLogs.length - 1, course.timeIntervals.length - 1);
+  for (let index = startIndex + 1; index <= lastIndex; index += 1) {
+    if (meeting.enrollmentLogs[index] == null) continue;
+    const timestamp = course.timeIntervals[index];
+    const demand = meeting.enrollmentLogs[index];
+    const currentWaitlist = Math.max(demand - capacityAt(meeting, timestamp), 0);
+    movement += Math.max(previousWaitlist - currentWaitlist, 0);
+    previousWaitlist = currentWaitlist;
+  }
   return {
     meeting: meeting.meetingNumber,
     movement,
@@ -190,6 +210,161 @@ function analyze(course, deadline, daysRemaining, position) {
     .filter(Boolean);
 }
 
+function modelFeatures(code, current, meeting, position) {
+  const course = current.course;
+  const deadline = current.deadline;
+  const index = snapshotAt(course, deadline, current.daysRemaining);
+  const index3 = snapshotAt(course, deadline, current.daysRemaining + 3);
+  const index7 = snapshotAt(course, deadline, current.daysRemaining + 7);
+  const time = course.timeIntervals[index];
+  const time7 = course.timeIntervals[index7];
+  const capacity = capacityAt(meeting, time);
+  const capacity7 = capacityAt(meeting, time7);
+  const waitlistAt = snapshotIndex => Math.max(
+    (meeting.enrollmentLogs[snapshotIndex] ?? 0) - capacityAt(meeting, course.timeIntervals[snapshotIndex]),
+    0
+  );
+  const observedWaitlist = waitlistAt(index);
+  // The collector can lag the user's live Acorn rank. Trust the entered rank as
+  // evidence that the current queue contains at least that many people.
+  const waitlist = Math.max(observedWaitlist, position);
+  const movement3 = waitlistAt(index3) - observedWaitlist;
+  const movement7 = waitlistAt(index7) - observedWaitlist;
+  const days = current.daysRemaining;
+  const near7 = days <= 7 ? 1 : 0;
+  const secondSubsession = getTerm(code) === "S" ? 1 : 0;
+  const positionToCapacity = capacity ? position / capacity : 0;
+  const waitlistToCapacity = capacity ? waitlist / capacity : 0;
+  return {
+    position_to_capacity: positionToCapacity,
+    waitlist_to_capacity: waitlistToCapacity,
+    days_to_deadline: days,
+    movement_3d: movement3,
+    movement_7d: movement7,
+    position,
+    waitlist,
+    capacity,
+    capacity_changed_7d: Number(capacity !== capacity7),
+    position_to_waitlist: waitlist ? position / waitlist : 0,
+    days_squared: days ** 2,
+    log_waitlist: Math.log1p(waitlist),
+    movement_velocity_7d: movement7 / 7,
+    near_deadline_7d: near7,
+    days_under_7: Math.max(7 - days, 0),
+    days_under_14: Math.max(14 - days, 0),
+    days_over_60: Math.max(days - 60, 0),
+    second_subsession_days: secondSubsession * days,
+    second_subsession_near_7d: secondSubsession * near7,
+    position_ratio_near_7d: positionToCapacity * near7,
+    waitlist_ratio_near_7d: waitlistToCapacity * near7,
+    course_code: code,
+    campus: campusFaculty(code),
+    term: getTerm(code) === "F" ? "fall" : getTerm(code) === "S" ? "winter" : "full_year"
+  };
+}
+
+function applyCalibration(probability, calibration) {
+  if (!calibration || calibration.method === "none") return probability;
+  if (calibration.method === "platt") {
+    const bounded = Math.min(Math.max(probability, 1e-6), 1 - 1e-6);
+    const logit = Math.log(bounded / (1 - bounded));
+    return 1 / (1 + Math.exp(-(calibration.intercept + calibration.coefficient * logit)));
+  }
+  if (calibration.method === "isotonic") {
+    const x = calibration.x;
+    const y = calibration.y;
+    if (probability <= x[0]) return y[0];
+    if (probability >= x.at(-1)) return y.at(-1);
+    const upper = x.findIndex(value => value >= probability);
+    const weight = (probability - x[upper - 1]) / (x[upper] - x[upper - 1]);
+    return y[upper - 1] + weight * (y[upper] - y[upper - 1]);
+  }
+  return probability;
+}
+
+function predictModel(model, features) {
+  let score = model.intercept;
+  model.numeric_features.forEach((feature, index) => {
+    const value = Number.isFinite(features[feature]) ? features[feature] : 0;
+    const scale = model.numeric_scale[index] || 1;
+    score += ((value - model.numeric_mean[index]) / scale) * model.numeric_coefficients[index];
+  });
+  model.categorical_features.forEach(feature => {
+    const mapping = model.categorical_weights[feature];
+    const value = String(features[feature]);
+    if (Object.hasOwn(mapping, value)) score += mapping[value];
+    else if (mapping.__infrequent_values__?.includes(value)) score += mapping.__infrequent__ ?? 0;
+  });
+  return applyCalibration(1 / (1 + Math.exp(-score)), model.calibration);
+}
+
+const DRIVER_GROUPS = {
+  rank: {
+    label: "Rank percentile",
+    features: ["position_to_capacity", "position", "position_to_waitlist", "position_ratio_near_7d"]
+  },
+  waitlist: {
+    label: "Waitlist size",
+    features: ["waitlist_to_capacity", "waitlist", "log_waitlist", "waitlist_ratio_near_7d"]
+  },
+  timing: {
+    label: "Time remaining",
+    features: ["days_to_deadline", "days_squared", "near_deadline_7d", "days_under_7", "days_under_14", "days_over_60"]
+  },
+  movement: {
+    label: "Recent movement",
+    features: ["movement_3d", "movement_7d", "movement_velocity_7d"]
+  },
+  capacity: {
+    label: "Section capacity",
+    features: ["capacity", "capacity_changed_7d"]
+  },
+  course: { label: "Course history", features: ["course_code"] },
+  campus: { label: "Campus context", features: ["campus"] },
+  term: {
+    label: "Course term",
+    features: ["term", "second_subsession_days", "second_subsession_near_7d"]
+  }
+};
+
+const DRIVER_GROUP_BY_FEATURE = Object.fromEntries(
+  Object.entries(DRIVER_GROUPS).flatMap(([group, definition]) =>
+    definition.features.map(feature => [feature, group])
+  )
+);
+
+function categoricalContribution(model, feature, value) {
+  const mapping = model.categorical_weights[feature];
+  const category = String(value);
+  if (Object.hasOwn(mapping, category)) return mapping[category];
+  if (mapping.__infrequent_values__?.includes(category)) return mapping.__infrequent__ ?? 0;
+  return 0;
+}
+
+function modelDrivers(model, features) {
+  const totals = Object.fromEntries(Object.keys(DRIVER_GROUPS).map(group => [group, 0]));
+  model.numeric_features.forEach((feature, index) => {
+    const value = Number.isFinite(features[feature]) ? features[feature] : 0;
+    const scale = model.numeric_scale[index] || 1;
+    const contribution = ((value - model.numeric_mean[index]) / scale) * model.numeric_coefficients[index];
+    totals[DRIVER_GROUP_BY_FEATURE[feature]] += contribution;
+  });
+  model.categorical_features.forEach(feature => {
+    totals[DRIVER_GROUP_BY_FEATURE[feature]] += categoricalContribution(model, feature, features[feature]);
+  });
+
+  const ranked = Object.entries(totals)
+    .map(([group, contribution]) => ({
+      label: DRIVER_GROUPS[group].label,
+      contribution,
+      magnitude: Math.abs(contribution)
+    }))
+    .sort((left, right) => right.magnitude - left.magnitude);
+  const thirdMagnitude = ranked[2]?.magnitude ?? 0;
+  const closeThreshold = Math.max(0.05, thirdMagnitude * 0.70);
+  return ranked.filter((driver, index) => index < 3 || (index < 7 && driver.magnitude >= closeThreshold));
+}
+
 async function deadlineFor(session, code) {
   const constants = await fetchJson(`${session}/AAtcconstants.json`);
   const faculty = constants.find(item => item.faculty === campusFaculty(code)) ?? constants[0];
@@ -202,16 +377,17 @@ async function getCurrentContext(code) {
       const [course, deadline] = await Promise.all([fetchJson(`${session}/${code}.json`), deadlineFor(session, code)]);
       if (!deadline) continue;
       const now = Math.floor(Date.now() / 1000);
-      return { session, daysRemaining: Math.max(0, Math.round((deadline - Math.min(now, deadline)) / 86400)), course };
+      return { session, deadline, daysRemaining: Math.max(0, Math.round((deadline - Math.min(now, deadline)) / 86400)), course };
     } catch { /* Course is not offered in this session. */ }
   }
   throw new Error("course-not-found");
 }
 
 async function estimate(code, lecture, position) {
-  const current = await getCurrentContext(code);
+  const [current, artifact] = await Promise.all([getCurrentContext(code), loadModel()]);
   const selectedMeeting = current.course.meetings.find(meeting => meeting.meetingNumber === lecture && !meeting.isCancelled);
   if (!selectedMeeting) throw new Error("invalid-lecture");
+  const features = modelFeatures(code, current, selectedMeeting, position);
   const historicalSessions = SESSIONS.filter(session => session < current.session && isSummer(session) === isSummer(current.session));
   const historical = await Promise.all(historicalSessions.map(async session => {
     try {
@@ -227,18 +403,32 @@ async function estimate(code, lecture, position) {
     throw new Error(historical.some(item => item.found) ? "position-never-reached" : "no-history");
   }
   const cleared = outcomes.filter(item => item.cleared).length;
-  const probability = Math.round((cleared / outcomes.length) * 100);
-  return { current, selectedMeeting, outcomes, cleared, probability };
+  const historicalProbability = cleared / outcomes.length;
+  const seasonalKey = isSummer(current.session) ? "summer" : "fall_winter";
+  // Schema 4 is the first artifact trained on cumulative observed queue drops.
+  const selectedModel = artifact?.schema_version >= 4 ? artifact.models?.[seasonalKey] : null;
+  const modelProbability = selectedModel
+    ? predictModel(selectedModel, features)
+    : historicalProbability;
+  return {
+    current, selectedMeeting, outcomes, cleared,
+    probability: Math.round(modelProbability * 100),
+    drivers: selectedModel ? modelDrivers(selectedModel, features) : [],
+    usedModel: Boolean(selectedModel),
+    modelQuality: selectedModel?.quality ?? "legacy",
+    seasonalKey
+  };
 }
 
 function renderEstimate(code, lecture, position, data) {
   const term = getTerm(code) === "S" ? "Winter" : getTerm(code) === "F" ? "Fall" : "full-year";
   results.innerHTML = `<div class="result-grid">
-    <div class="result-score"><div class="result-label">ORACLE'S ESTIMATE</div><div class="probability">${data.probability}%</div></div>
+    <div class="result-score"><div class="result-label">ORACLE'S ESTIMATE</div><div class="probability">${data.probability}%</div>${data.drivers.length ? `<div class="drivers"><div class="result-label driver-title">DRIVEN BY</div>${data.drivers.map(driver => `<div class="driver ${driver.contribution >= 0 ? "positive" : "negative"}"><span class="driver-sign">${driver.contribution >= 0 ? "+" : "−"}</span><span>${driver.label}</span></div>`).join("")}</div>` : ""}</div>
     <div><p class="result-summary">Position <strong>#${position}</strong> in ${code} cleared in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings.</p>
-      <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${sessionLabel(item.session)} · ${item.meeting} · ${item.instructor}<br><small>${item.startWaitlist} waiting at the comparable date · ${item.movement} spots moved</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "CLEARED" : "DID NOT CLEAR"}</strong></div>`).join("")}</div>
-      <p class="result-note">Compared ${data.current.daysRemaining} days before the ${term} waitlist deadline. </p>
-    </div></div>`;
+      <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${sessionLabel(item.session)} · ${item.meeting} · ${item.instructor}<br><small>${item.startWaitlist} waiting on the equivalent day · ${item.movement} spots moved</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "CLEARED" : "DID NOT CLEAR"}</strong></div>`).join("")}</div>
+    </div>
+    <p class="result-note">Compared ${data.current.daysRemaining} days before the ${term} waitlist deadline. Clearance is inferred from observed downward waitlist changes between collector snapshots. Some may be missed.${data.usedModel ? `${data.seasonalKey === "summer" ? " Summer estimates are less stable and should be treated with extra caution." : ""}` : " Historical percentage shown because the model is unavailable."}</p>
+  </div>`;
   results.hidden = false;
   results.scrollIntoView({ behavior: "smooth", block: "start" });
 }
