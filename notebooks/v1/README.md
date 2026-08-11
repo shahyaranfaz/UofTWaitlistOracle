@@ -5,7 +5,7 @@ enrollment archive and owns the canonical cache. Every later notebook reads the
 same cached session samples and does not parse the archive again.
 
 1. [`01_build_dataset_cache.ipynb`](01_build_dataset_cache.ipynb) audits queue
-   reconstruction, manufactures clearance labels, validates them, and creates
+   reconstruction, creates inferred rank-reach labels, validates them, and creates
    the deterministic per-session cache.
 2. [`02_model_family_screening.ipynb`](02_model_family_screening.ipynb) compares
    compact logistic models, a contextual logistic model, gradient boosting, and

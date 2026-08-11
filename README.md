@@ -1,7 +1,8 @@
 # UofT Waitlist Oracle
 
-UofT Waitlist Oracle estimates the probability that a waitlist rank will clear
-for a specific University of Toronto course and lecture section. It combines
+UofT Waitlist Oracle estimates the probability that a waitlist will record
+enough cumulative shrinkage to cover an entered position for a specific
+University of Toronto course and lecture section. It combines
 the current queue, section capacity, time remaining, recent movement, course
 context, and public enrollment history in a model that runs entirely in the 
 browser.
@@ -25,20 +26,24 @@ max(enrollment demand - section capacity, 0)
 Offerings are aligned by days remaining before the applicable U of T waitlist
 deadline, rather than by calendar date or enrollment deadline.
 
-### Defining clearance
+### Defining the target
 
-The archive does not identify individual students. Clearance is therefore
-inferred from cumulative observed downward waitlist changes between a snapshot
-and the deadline. Later increases do not erase earlier queue movement because
-those students generally joined behind the rank being evaluated.
+The archive does not identify individual students or record admission offers.
+The model target is therefore whether cumulative observed downward queue
+movement between a snapshot and the deadline reaches a given rank. Later
+increases do not erase an earlier observed decrease.
 
-This is a conservative proxy: movement that occurs entirely between collector
-snapshots cannot be observed. Capacity increases count as queue advancement
-because they create seats for students already waiting.
+This is not verified student advancement. A departure behind a student can
+shrink the queue without advancing that student, while a departure ahead that
+is offset by a new arrival between snapshots can be invisible. The proxy can
+therefore err in either direction. Capacity increases can also contribute to
+an observed decrease.
 
 Each training row represents one waitlist rank in one lecture on one observed
-day. Its target is `cleared` when cumulative observed queue movement from that
-day to the waitlist deadline reaches that rank.
+day. The legacy internal target column is named `cleared`, but it is 1 when
+cumulative observed downward movement reaches that rank. The percentage
+estimates this archive-derived target, not the probability of receiving an
+offer directly.
 
 ### Model
 
@@ -128,8 +133,9 @@ sequence is documented in the
 
 The Oracle is compared with three understandable baselines:
 
-- **Historical percentage:** how often the same rank cleared in previous
-  lectures of the course at the equivalent date.
+- **Historical percentage:** how often cumulative observed shrinkage was at
+  least as large as the entered position in previous lectures of the course at
+  the equivalent date.
 - **Literal 10% rule:** predicts clear when rank is no more than 10% of lecture
   capacity.
 - **Boosted 10% rule:** a fitted probability curve that still uses only
@@ -169,9 +175,11 @@ model percentage.
 
 ### Limitations
 
-- Queue size and clearance are inferred from collector snapshots rather than
-  individual student records.
-- Movement that happens entirely between snapshots can be missed.
+- Queue size and cumulative shrinkage are inferred from collector snapshots rather than
+  student records or admission offers.
+- Departures behind a rank can be counted as movement, while movement hidden by
+  offsetting arrivals between snapshots can be missed. The target can therefore
+  differ from an individual student's actual advancement in either direction.
 - Course scheduling, instructor changes, reserved seats, and student behavior
   can shift between years.
 - Summer has fewer comparable observations and should be treated with more
