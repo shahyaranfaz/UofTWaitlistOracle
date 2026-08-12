@@ -68,6 +68,6 @@ assert.equal(manifest.current, "20269");
 const churnCourse = {timeIntervals: [2_000_000_000 - 10 * 86_400, 2_000_000_000 - 5 * 86_400, 2_000_000_000 - 86_400]};
 const churnMeeting = {meetingNumber: "LEC0101", enrollmentCap: 100, enrollmentLogs: [110, 105, 109]};
 const churnOutcome = sandbox.analyzeOne(churnCourse, churnMeeting, 2_000_000_000, 10, 2);
-assert.equal(churnOutcome.movement, 1, "Historical evidence must use net shrinkage, not cumulative temporary drops");
-assert.equal(churnOutcome.cleared, false);
+assert.equal(churnOutcome.movement, 5, "Historical evidence must retain visible movement when arrivals refill the queue");
+assert.equal(churnOutcome.cleared, true);
 console.log("Production feature parity fixture passed");

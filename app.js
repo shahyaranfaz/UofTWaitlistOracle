@@ -291,9 +291,14 @@ export function analyzeMeeting(course, meeting, deadline, daysRemaining, positio
   const startWaitlist = Math.max(startDemand - capacityAt(meeting, startTime), 0);
   // A position that never existed in that offering is not evidence either way.
   if (startWaitlist < position) return null;
-  const endTime = course.timeIntervals[endIndex];
-  const endWaitlist = Math.max(meeting.enrollmentLogs[endIndex] - capacityAt(meeting, endTime), 0);
-  const movement = Math.max(startWaitlist - endWaitlist, 0);
+  let movement = 0;
+  let previousWaitlist = startWaitlist;
+  for (let index = startIndex + 1; index <= endIndex; index += 1) {
+    const time = course.timeIntervals[index];
+    const waitlist = Math.max(meeting.enrollmentLogs[index] - capacityAt(meeting, time), 0);
+    movement += Math.max(previousWaitlist - waitlist, 0);
+    previousWaitlist = waitlist;
+  }
   return {
     meeting: meeting.meetingNumber,
     movement,
@@ -632,7 +637,7 @@ async function estimate(code, lecture, position) {
   const cleared = outcomes.filter(item => item.cleared).length;
   const historicalProbability = outcomes.length ? cleared / outcomes.length : null;
   const seasonalKey = isSummer(current.session) ? "summer" : "fall_winter";
-  // Schema 4 introduced observed-drop targets; schema 7 switches to net shrinkage.
+  // Schema 4+ models predict cumulative observed downward waitlist movement.
   const selectedModel = artifact?.schema_version >= 4 ? artifact.models?.[seasonalKey] : null;
   if (artifact?.schema_version >= 7 && !["validated", "experimental"].includes(selectedModel?.quality)) {
     throw new Error("model-not-validated");
@@ -655,13 +660,13 @@ function renderEstimate(code, lecture, position, data) {
   const term = getTerm(code) === "S" ? "Winter" : getTerm(code) === "F" ? "Fall" : "full-year";
   const safeCode = escapeHtml(code);
   const historyPane = data.historyStatus === "available"
-    ? `<p class="result-summary">The waitlist shrank by at least <strong>${position} ${position === 1 ? "position" : "positions"}</strong> in ${safeCode} in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings.</p>
-      <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${escapeHtml(sessionLabel(item.session))} · ${escapeHtml(item.meeting)} · ${escapeHtml(item.instructor)}<br><small>${Number(item.startWaitlist)} waiting on the equivalent day · ${Number(item.movement)} spots of net shrinkage</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "REACHED" : "DID NOT REACH"}</strong></div>`).join("")}</div>`
+    ? `<p class="result-summary">The waitlist recorded at least <strong>${position} ${position === 1 ? "position" : "positions"}</strong> of downward movement in ${safeCode} in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings.</p>
+      <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${escapeHtml(sessionLabel(item.session))} · ${escapeHtml(item.meeting)} · ${escapeHtml(item.instructor)}<br><small>${Number(item.startWaitlist)} waiting on the equivalent day · ${Number(item.movement)} positions of downward movement</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "REACHED" : "DID NOT REACH"}</strong></div>`).join("")}</div>`
     : `<div class="history-empty"><p class="error-message">${data.historyStatus === "position-never-reached" ? "The course was found, but the waitlist has never been this high." : "The course was found, but it has no previous offerings in the archive."}</p></div>`;
   results.innerHTML = `<div class="result-grid">
     <div class="result-score"><div class="result-label">ORACLE'S ESTIMATE</div><div class="probability">${data.probability}%</div>${data.drivers.length ? `<div class="drivers"><div class="result-label driver-title">DRIVEN BY</div>${data.drivers.map(driver => `<div class="driver ${driver.contribution >= 0 ? "positive" : "negative"}"><span class="driver-sign">${driver.contribution >= 0 ? "+" : "−"}</span><span>${driver.label}</span></div>`).join("")}</div>` : ""}</div>
     <div>${historyPane}</div>
-    <p class="result-note">Compared ${data.current.daysRemaining} days before the ${term} waitlist deadline. This estimates whether net waitlist shrinkage will be at least your position. It cannot tell whether you personally will get into the course. Departures behind you may be counted, while movement hidden by offsetting arrivals between snapshots may be missed.${data.usedModel ? `${data.modelQuality === "experimental" ? " The Summer model is experimental because it missed strict calibration checks, so treat its percentage with extra caution." : ""}` : " Historical percentage shown because the model is unavailable. It is the success rate of the previous lecture offerings listed above."}</p>
+    <p class="result-note">Compared ${data.current.daysRemaining} days before the ${term} waitlist deadline. This estimates whether the archive will record at least your position in cumulative downward waitlist movement. It cannot tell whether you personally will get into the course. Departures behind you may be counted, while departures hidden by offsetting arrivals between snapshots may be missed.${data.usedModel ? `${data.modelQuality === "experimental" ? " The Summer model is experimental because it missed strict calibration checks, so treat its percentage with extra caution." : ""}` : " Historical percentage shown because the model is unavailable. It is the success rate of the previous lecture offerings listed above."}</p>
   </div>`;
   results.hidden = false;
   results.scrollIntoView({ behavior: "smooth", block: "start" });
