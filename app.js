@@ -13,6 +13,7 @@ let courseOptions = [];
 let activeOption = -1;
 let modelPromise;
 let isSubmitting = false;
+const lectureRankLimits = new Map();
 const jsonCache = new Map();
 
 function escapeHtml(value) {
@@ -27,15 +28,32 @@ function escapeHtml(value) {
 
 function formIsReady() {
   const position = Number(positionInput.value);
+  const rankLimit = lectureRankLimits.get(lectureValue.value);
   return courseOptions.includes(courseInput.value.trim().toUpperCase())
     && Boolean(lectureValue.value)
     && Number.isInteger(position)
-    && position >= 1
-    && position <= 999;
+    && position > 0
+    && Number.isFinite(rankLimit)
+    && position < rankLimit;
 }
 
 function updateFormState() {
   submitButton.disabled = isSubmitting || !formIsReady();
+}
+
+function updateRankState() {
+  updateFormState();
+}
+
+function applyPositionLimit() {
+  if (!lectureValue.value) {
+    document.querySelector("#position-help").textContent = "Your place on the waitlist";
+    updateFormState();
+    return;
+  }
+  const limit = Math.max(1, lectureRankLimits.get(lectureValue.value) ?? 1);
+  document.querySelector("#position-help").textContent = `Current queue range: 1–${limit - 1}`;
+  updateRankState();
 }
 
 function markQueryChanged() {
@@ -67,11 +85,11 @@ function fetchJson(path) {
 }
 
 function loadModel() {
-  modelPromise ??= fetch("model/oracle-model.json?v=6")
+  modelPromise ??= fetch("model/oracle-model.json?v=7")
     .then(response => {
       if (!response.ok) throw new Error(`Model ${response.status}`);
-      return response.json();
-    })
+        return response.json();
+      })
     .catch(() => null);
   return modelPromise;
 }
@@ -96,16 +114,25 @@ function closeCourseList() {
 }
 
 async function loadLectures(code) {
+  lectureRankLimits.clear();
   lectureValue.value = "";
   lectureInput.value = "";
   lectureInput.placeholder = "LOADING LECTURES…";
   lectureInput.disabled = true;
   lectureList.hidden = true;
   try {
-    const { course } = await getCurrentContext(code);
+    const current = await getCurrentContext(code);
+    const { course } = current;
     const lectures = course.meetings.filter(meeting =>
       !meeting.isCancelled && meeting.enrollmentLogs?.length && /^LEC/i.test(meeting.meetingNumber ?? "")
     );
+    const snapshotIndex = snapshotAt(course, current.deadline, current.daysRemaining);
+    const snapshotTime = course.timeIntervals[snapshotIndex];
+    lectures.forEach(meeting => {
+      const demand = meeting.enrollmentLogs[snapshotIndex] ?? 0;
+      const observedWaitlist = Math.max(demand - capacityAt(meeting, snapshotTime), 0);
+      lectureRankLimits.set(meeting.meetingNumber, observedWaitlist + 5);
+    });
     lectureList.innerHTML = lectures.map(meeting => {
       const instructors = meeting.instructors?.map(i => `${i.firstName} ${i.lastName}`).join(", ");
       const meetingNumber = escapeHtml(meeting.meetingNumber);
@@ -129,6 +156,7 @@ function chooseLecture(lecture) {
   lectureValue.value = lecture;
   lectureInput.value = lecture;
   closeLectureList();
+  applyPositionLimit();
   markQueryChanged();
 }
 
@@ -172,7 +200,7 @@ courseInput.addEventListener("input", () => {
   markQueryChanged();
 });
 positionInput.addEventListener("input", () => {
-  markQueryChanged();
+  updateRankState();
 });
 courseInput.addEventListener("keydown", event => {
   const options = [...courseList.querySelectorAll("li[data-code]")];
@@ -276,9 +304,7 @@ function modelFeatures(code, current, meeting, position) {
     0
   );
   const observedWaitlist = waitlistAt(index);
-  // The collector can lag the user's live Acorn rank. Trust the entered rank as
-  // evidence that the current queue contains at least that many people.
-  const waitlist = Math.max(observedWaitlist, position);
+  const waitlist = observedWaitlist;
   const movement3 = waitlistAt(index3) - observedWaitlist;
   const movement7 = waitlistAt(index7) - observedWaitlist;
   const days = current.daysRemaining;
@@ -298,7 +324,7 @@ function modelFeatures(code, current, meeting, position) {
     waitlist,
     capacity,
     capacity_changed_7d: Number(capacity !== capacity7),
-    position_to_waitlist: waitlist ? position / waitlist : 0,
+    position_to_waitlist: waitlist ? Math.min(position / waitlist, 1) : 1,
     days_squared: days ** 2,
     log_waitlist: Math.log1p(waitlist),
     movement_velocity_7d: movement7 / 7,
@@ -477,6 +503,10 @@ async function getCurrentContext(code) {
 
 async function estimate(code, lecture, position) {
   const [current, artifact] = await Promise.all([getCurrentContext(code), loadModel()]);
+  const modelMaxPosition = Number(artifact?.training_support?.max_position);
+  if (Number.isFinite(modelMaxPosition) && position > modelMaxPosition) {
+    throw new Error("rank-outside-model");
+  }
   const selectedMeeting = current.course.meetings.find(meeting => meeting.meetingNumber === lecture && !meeting.isCancelled);
   if (!selectedMeeting) throw new Error("invalid-lecture");
   const features = modelFeatures(code, current, selectedMeeting, position);
@@ -544,6 +574,12 @@ function renderError(error) {
   results.scrollIntoView({ behavior: "smooth" });
 }
 
+function renderRangeError() {
+  results.innerHTML = `<p class="error-message">Your rank is outside the Oracle's range, and has probably never happened before in any lecture.</p>`;
+  results.dataset.state = "range-error";
+  results.hidden = false;
+}
+
 function updateShareUrl(code, lecture, position) {
   const url = new URL(window.location.href);
   url.search = "";
@@ -566,7 +602,10 @@ form.addEventListener("submit", async event => {
     renderEstimate(code, lecture, position, await estimate(code, lecture, position));
     updateShareUrl(code, lecture, position);
   }
-  catch (error) { renderError(error); }
+  catch (error) {
+    if (error.message === "rank-outside-model") renderRangeError();
+    else renderError(error);
+  }
   finally { isSubmitting = false; submitButton.querySelector("span").textContent = "Ask the Oracle"; updateFormState(); }
 });
 
@@ -583,6 +622,7 @@ async function restoreSharedEstimate() {
 
   chooseLecture(lecture);
   form.position.value = position;
+  updateRankState();
   form.requestSubmit();
 }
 
