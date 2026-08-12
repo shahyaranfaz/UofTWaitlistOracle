@@ -28,11 +28,13 @@ vm.runInContext(`
   ${functionSource("capacityAt")}
   ${functionSource("snapshotAt")}
   ${functionSource("meetingSnapshotAt")}
+  ${functionSource("analyzeMeeting")}
   ${functionSource("modelFeatures")}
   ${functionSource("modelMedian")}
   ${functionSource("coherentCounterfactual")}
   ${functionSource("parseSessionManifest")}
   globalThis.build = modelFeatures;
+  globalThis.analyzeOne = analyzeMeeting;
   globalThis.counterfactual = coherentCounterfactual;
   globalThis.parseManifest = parseSessionManifest;
 `, sandbox);
@@ -63,4 +65,9 @@ const manifest = sandbox.parseManifest({
 });
 assert.deepEqual([...manifest.sessions], ["20265", "20269"]);
 assert.equal(manifest.current, "20269");
+const churnCourse = {timeIntervals: [2_000_000_000 - 10 * 86_400, 2_000_000_000 - 5 * 86_400, 2_000_000_000 - 86_400]};
+const churnMeeting = {meetingNumber: "LEC0101", enrollmentCap: 100, enrollmentLogs: [110, 105, 109]};
+const churnOutcome = sandbox.analyzeOne(churnCourse, churnMeeting, 2_000_000_000, 10, 2);
+assert.equal(churnOutcome.movement, 1, "Historical evidence must use net shrinkage, not cumulative temporary drops");
+assert.equal(churnOutcome.cleared, false);
 console.log("Production feature parity fixture passed");
