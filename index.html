@@ -69,7 +69,7 @@
       <p>Each training row represents one rank in one lecture on one observed day. The target records whether cumulative observed downward queue movement from that day to the deadline reaches that rank. Capacity increases can contribute to the observed decrease.</p>
       <p>This is not a record of individual admission offers. A departure behind you can shrink the queue without advancing you. A departure ahead can also be hidden when a new student joins between collector snapshots. The estimate can therefore differ from actual student advancement in either direction.</p>
       <h3>Model</h3>
-      <p>The Oracle uses separate histogram gradient-boosted tree models for Fall/Winter and Summer. Each ensemble contains 200 small trees with at most 15 leaves. Missing numeric values are filled with the training median. No post-hoc calibration is applied.</p>
+      <p>The Oracle uses separate histogram gradient-boosted tree models for Fall/Winter and Summer. Each ensemble contains 200 small trees with at most 15 leaves and L2 regularization of 3. Missing numeric values are filled with the training median. No post-hoc calibration is applied.</p>
       <p>The model uses 26 numeric features:</p>
       <ul class="methodology-features">
         <li><strong>Rank:</strong> raw rank, rank divided by capacity, and rank divided by waitlist size</li>
@@ -98,23 +98,38 @@
       </table></div>
       <p>No validation rows enter that fold's model fit, preprocessing values, or capacity-only baseline fit. Metrics are calculated per holdout and averaged across the three folds for each season. After sampling, every retained lecture offering receives total weight 1 and each retained day contributes equally within its offering. This prevents large queues and random sampling differences from dominating.</p>
       <p>After the model and feature choices are complete, the production models are refit on all completed sessions for their season. The current session is used only to build live inputs.</p>
-      <p><strong>Accuracy</strong> uses a 50% cutoff. <strong>Brier</strong> measures probability error. <strong>ECE</strong> measures calibration. <strong>AUC</strong> measures how well likely clears are ranked above likely misses.</p>
+      <p><strong>Accuracy</strong> uses a 50% cutoff. <strong>Brier</strong> measures probability error. <strong>ECE</strong> measures calibration. <strong>AUC</strong> measures how well likely target-met rows are ranked above likely target-not-met rows.</p>
       <h3>Baselines</h3>
-      <p>The <strong>historical percentage</strong> is how often cumulative observed shrinkage was at least as large as the entered position in earlier lectures at the equivalent date. The <strong>literal 10% rule</strong> predicts that threshold when the position is no more than 10% of capacity. The <strong>boosted 10% rule</strong> is a fitted probability curve that still uses only position divided by capacity. All methods are scored on the same historical-comparable rows. That subset covers 61.9% of Fall/Winter validation weight and 53.9% of Summer validation weight.</p>
+      <p>The <strong>historical percentage</strong> is how often cumulative observed shrinkage was at least as large as the entered position in earlier lectures at the equivalent date. Notebook 7 reproduces it from complete archived trajectories. The <strong>literal 10% rule</strong> predicts that threshold when the position is no more than 10% of capacity. The <strong>boosted 10% rule</strong> is a fitted probability curve that still uses only position divided by capacity.</p>
+      <h3>Overall performance</h3>
+      <p>The Oracle and both capacity baselines are scored on every validation row.</p>
       <div class="methodology-table-wrap"><table>
         <thead><tr><th>Season</th><th>Method</th><th>Accuracy</th><th>Brier</th><th>ECE</th><th>AUC</th></tr></thead>
         <tbody>
-          <tr><td>Fall/Winter</td><td>Oracle model</td><td><strong>94.6%</strong></td><td><strong>0.0394</strong></td><td><strong>0.0098</strong></td><td><strong>0.9673</strong></td></tr>
-          <tr><td>Fall/Winter</td><td>Historical percentage</td><td>89.4%</td><td>0.0995</td><td>0.0901</td><td>0.6813</td></tr>
-          <tr><td>Fall/Winter</td><td>Literal 10% rule</td><td>71.6%</td><td>0.2843</td><td>0.2843</td><td>0.6366</td></tr>
-          <tr><td>Fall/Winter</td><td>Boosted 10% rule</td><td>89.7%</td><td>0.0882</td><td>0.0251</td><td>0.6715</td></tr>
-          <tr><td>Summer</td><td>Oracle model</td><td><strong>94.5%</strong></td><td><strong>0.0418</strong></td><td>0.0245</td><td><strong>0.9486</strong></td></tr>
-          <tr><td>Summer</td><td>Historical percentage</td><td>92.9%</td><td>0.0669</td><td>0.0632</td><td>0.6754</td></tr>
-          <tr><td>Summer</td><td>Literal 10% rule</td><td>74.1%</td><td>0.2590</td><td>0.2590</td><td>0.6477</td></tr>
-          <tr><td>Summer</td><td>Boosted 10% rule</td><td>92.1%</td><td>0.0711</td><td><strong>0.0157</strong></td><td>0.6868</td></tr>
+          <tr><td>Fall/Winter</td><td>Oracle model</td><td><strong>93.5%</strong></td><td><strong>0.0472</strong></td><td><strong>0.0118</strong></td><td><strong>0.9579</strong></td></tr>
+          <tr><td>Fall/Winter</td><td>Literal 10% rule</td><td>65.4%</td><td>0.3455</td><td>0.3455</td><td>0.6428</td></tr>
+          <tr><td>Fall/Winter</td><td>Boosted 10% rule</td><td>88.5%</td><td>0.0963</td><td>0.0268</td><td>0.6936</td></tr>
+          <tr><td>Summer</td><td>Oracle model</td><td><strong>93.9%</strong></td><td><strong>0.0463</strong></td><td>0.0270</td><td><strong>0.9421</strong></td></tr>
+          <tr><td>Summer</td><td>Literal 10% rule</td><td>71.2%</td><td>0.2877</td><td>0.2877</td><td>0.6428</td></tr>
+          <tr><td>Summer</td><td>Boosted 10% rule</td><td>91.1%</td><td>0.0790</td><td><strong>0.0203</strong></td><td>0.6783</td></tr>
         </tbody>
       </table></div>
-      <p>The Oracle cut Brier error by 55.4% against the boosted 10% rule, 60.4% against history, and 86.2% against the literal 10% rule in Fall/Winter. Summer reductions were 41.3%, 37.6%, and 83.9%. It had the best Brier score in every chronological holdout.</p>
+      <h3>Direct comparison with history</h3>
+      <p>The historical percentage can score only rows with a comparable earlier lecture. This common subset covers 53.7% of Fall/Winter validation weight and 40.7% of Summer validation weight.</p>
+      <div class="methodology-table-wrap"><table>
+        <thead><tr><th>Season</th><th>Method</th><th>Accuracy</th><th>Brier</th><th>ECE</th><th>AUC</th></tr></thead>
+        <tbody>
+          <tr><td>Fall/Winter</td><td>Oracle model</td><td><strong>94.1%</strong></td><td><strong>0.0428</strong></td><td><strong>0.0105</strong></td><td><strong>0.9613</strong></td></tr>
+          <tr><td>Fall/Winter</td><td>Historical percentage</td><td>93.2%</td><td>0.0629</td><td>0.0562</td><td>0.8211</td></tr>
+          <tr><td>Fall/Winter</td><td>Literal 10% rule</td><td>67.8%</td><td>0.3225</td><td>0.3225</td><td>0.6435</td></tr>
+          <tr><td>Fall/Winter</td><td>Boosted 10% rule</td><td>89.7%</td><td>0.0878</td><td>0.0266</td><td>0.6921</td></tr>
+          <tr><td>Summer</td><td>Oracle model</td><td><strong>95.2%</strong></td><td><strong>0.0362</strong></td><td>0.0208</td><td><strong>0.9489</strong></td></tr>
+          <tr><td>Summer</td><td>Historical percentage</td><td>94.9%</td><td>0.0491</td><td>0.0469</td><td>0.7361</td></tr>
+          <tr><td>Summer</td><td>Literal 10% rule</td><td>75.0%</td><td>0.2498</td><td>0.2498</td><td>0.6641</td></tr>
+          <tr><td>Summer</td><td>Boosted 10% rule</td><td>93.5%</td><td>0.0591</td><td><strong>0.0132</strong></td><td>0.7043</td></tr>
+        </tbody>
+      </table></div>
+      <p>On the common subset, the Oracle cut Brier error by 51.2% against the boosted 10% rule, 31.8% against history, and 86.7% against the literal 10% rule in Fall/Winter. Summer reductions were 38.8%, 26.4%, and 85.5%. The overall performance claim comes from the all-validation table above.</p>
       <p>The complete benchmark calculations, chronological fold results, and figure generation are available in <a href="https://github.com/shahyaranfaz/UofTWaitlistOracle/blob/master/notebooks/v1/07_production_benchmark.ipynb" target="_blank" rel="noreferrer">Notebook 7</a>.</p>
       <h3>Production and limitations</h3>
       <p>The exported tree splits, leaf values, and preprocessing medians run locally in the browser. Historical outcomes are fetched and displayed separately. They do not change the model percentage.</p>
@@ -123,6 +138,6 @@
       <p>Enrollment history is maintained by <a href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">ICPRplshelp</a> and originates from U of T’s public timetable builder.</p>
     </div>
   </dialog>
-  <script type="module" src="app.js?v=21"></script>
+  <script type="module" src="app.js?v=22"></script>
 </body>
 </html>

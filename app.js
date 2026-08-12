@@ -37,7 +37,7 @@ function fetchJson(path) {
 }
 
 function loadModel() {
-  modelPromise ??= fetch("model/oracle-model.json?v=5")
+  modelPromise ??= fetch("model/oracle-model.json?v=6")
     .then(response => {
       if (!response.ok) throw new Error(`Model ${response.status}`);
       return response.json();
