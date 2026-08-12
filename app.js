@@ -1,5 +1,6 @@
 const DATA_ROOT = "https://raw.githubusercontent.com/ICPRplshelp/Enrollment-Data/master";
-const SESSIONS = ["20229", "20235", "20239", "20245", "20249", "20255", "20259", "20265", "20269"];
+let SESSIONS = [];
+let CURRENT_SESSION = null;
 const form = document.querySelector("#oracle-form");
 const results = document.querySelector("#results");
 const courseInput = document.querySelector("#course");
@@ -13,6 +14,7 @@ let courseOptions = [];
 let activeOption = -1;
 let modelPromise;
 let isSubmitting = false;
+let lectureRequestId = 0;
 const lectureRankLimits = new Map();
 const jsonCache = new Map();
 
@@ -84,6 +86,23 @@ function fetchJson(path) {
   return jsonCache.get(path);
 }
 
+export function parseSessionManifest(manifest) {
+  const sessions = manifest?.sessions?.map(item => String(item.sessionCode))
+    .filter(session => /^\d{5}$/.test(session)) ?? [];
+  const uniqueSessions = [...new Set(sessions)].sort();
+  const current = String(manifest?.default ?? "");
+  if (!uniqueSessions.length || !uniqueSessions.includes(current)) {
+    throw new Error("session-manifest-invalid");
+  }
+  return {sessions: uniqueSessions, current};
+}
+
+async function loadSessionManifest() {
+  const parsed = parseSessionManifest(await fetchJson("sessions.json"));
+  SESSIONS = parsed.sessions;
+  CURRENT_SESSION = parsed.current;
+}
+
 function loadModel() {
   modelPromise ??= fetch("model/oracle-model.json?v=8")
     .then(response => {
@@ -114,6 +133,7 @@ function closeCourseList() {
 }
 
 async function loadLectures(code) {
+  const requestId = ++lectureRequestId;
   lectureRankLimits.clear();
   lectureValue.value = "";
   lectureInput.value = "";
@@ -122,6 +142,7 @@ async function loadLectures(code) {
   lectureList.hidden = true;
   try {
     const current = await getCurrentContext(code);
+    if (requestId !== lectureRequestId || courseInput.value.trim().toUpperCase() !== code) return [];
     const { course } = current;
     const lectures = course.meetings.filter(meeting =>
       !meeting.isCancelled && meeting.enrollmentLogs?.length && /^LEC/i.test(meeting.meetingNumber ?? "")
@@ -143,7 +164,9 @@ async function loadLectures(code) {
     lectureInput.disabled = !lectures.length;
     return lectures;
   } catch {
+    if (requestId !== lectureRequestId || courseInput.value.trim().toUpperCase() !== code) return [];
     lectureInput.placeholder = "LECTURES UNAVAILABLE";
+    lectureInput.disabled = true;
     return [];
   }
 }
@@ -182,7 +205,7 @@ function showCourseMatches() {
 
 async function loadCourseOptions() {
   try {
-    courseOptions = flattenCourseList(await fetchJson(`${SESSIONS.at(-1)}/AAclistall.json`));
+    courseOptions = flattenCourseList(await fetchJson(`${CURRENT_SESSION}/AAclistall.json`));
   } catch {
     document.querySelector("#course-help").textContent = "Course list unavailable — refresh to try again";
   }
@@ -191,6 +214,7 @@ async function loadCourseOptions() {
 
 courseInput.addEventListener("focus", showCourseMatches);
 courseInput.addEventListener("input", () => {
+  lectureRequestId += 1;
   courseInput.value = courseInput.value.toUpperCase().replace(/\s/g, "");
   lectureValue.value = "";
   lectureInput.value = "";
@@ -566,7 +590,7 @@ async function deadlineFor(session, code) {
 }
 
 async function getCurrentContext(code) {
-  const session = SESSIONS.at(-1);
+  const session = CURRENT_SESSION;
   let course;
   try {
     course = await fetchJson(`${session}/${code}.json`);
@@ -724,8 +748,19 @@ async function restoreSharedEstimate() {
   form.requestSubmit();
 }
 
-loadModel();
-loadCourseOptions().then(restoreSharedEstimate);
+async function bootstrap() {
+  loadModel();
+  try {
+    await loadSessionManifest();
+    await loadCourseOptions();
+    await restoreSharedEstimate();
+  } catch {
+    document.querySelector("#course-help").textContent = "Current course list unavailable — refresh to try again";
+    updateFormState();
+  }
+}
+
+bootstrap();
 
 const methodologyDialog = document.querySelector("#methodology-dialog");
 document.querySelector("#methodology-open").addEventListener("click", () => methodologyDialog.showModal());

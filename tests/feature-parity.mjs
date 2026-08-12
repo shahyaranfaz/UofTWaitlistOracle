@@ -29,8 +29,10 @@ vm.runInContext(`
   ${functionSource("modelFeatures")}
   ${functionSource("modelMedian")}
   ${functionSource("coherentCounterfactual")}
+  ${functionSource("parseSessionManifest")}
   globalThis.build = modelFeatures;
   globalThis.counterfactual = coherentCounterfactual;
+  globalThis.parseManifest = parseSessionManifest;
 `, sandbox);
 
 const deadline = 2_000_000_000;
@@ -98,4 +100,10 @@ assert.ok(Math.abs(rankComparison.position_to_waitlist - rankComparison.position
 const timingComparison = sandbox.counterfactual(model, actual, "timing");
 assert.equal(timingComparison.near_deadline_7d, Number(timingComparison.days_to_deadline <= 7));
 assert.equal(timingComparison.days_squared, timingComparison.days_to_deadline ** 2);
+const manifest = sandbox.parseManifest({
+  sessions: [{sessionCode: "20269"}, {sessionCode: "20265"}, {sessionCode: "20269"}],
+  default: "20269"
+});
+assert.deepEqual([...manifest.sessions], ["20265", "20269"]);
+assert.equal(manifest.current, "20269");
 console.log("Production feature parity fixture passed");
