@@ -15,6 +15,16 @@ let modelPromise;
 let isSubmitting = false;
 const jsonCache = new Map();
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
+}
+
 function formIsReady() {
   const position = Number(positionInput.value);
   return courseOptions.includes(courseInput.value.trim().toUpperCase())
@@ -98,7 +108,8 @@ async function loadLectures(code) {
     );
     lectureList.innerHTML = lectures.map(meeting => {
       const instructors = meeting.instructors?.map(i => `${i.firstName} ${i.lastName}`).join(", ");
-      return `<li role="option" data-lecture="${meeting.meetingNumber}"><b>${meeting.meetingNumber}</b><span>${instructors || "Instructor unavailable"}</span></li>`;
+      const meetingNumber = escapeHtml(meeting.meetingNumber);
+      return `<li role="option" data-lecture="${meetingNumber}"><b>${meetingNumber}</b><span>${escapeHtml(instructors || "Instructor unavailable")}</span></li>`;
     }).join("");
     lectureInput.placeholder = lectures.length ? "CHOOSE LECTURE" : "NO LECTURES FOUND";
     lectureInput.disabled = !lectures.length;
@@ -134,7 +145,7 @@ function showCourseMatches() {
   const matches = courseOptions.filter(code => code.includes(query)).slice(0, 8);
   activeOption = -1;
   courseList.innerHTML = matches.length
-    ? matches.map(code => `<li role="option" data-code="${code}"><b>${code}</b><span>${courseMeta(code)}</span></li>`).join("")
+    ? matches.map(code => `<li role="option" data-code="${escapeHtml(code)}"><b>${escapeHtml(code)}</b><span>${escapeHtml(courseMeta(code))}</span></li>`).join("")
     : `<li class="empty">No matching courses</li>`;
   courseList.hidden = false;
   courseInput.setAttribute("aria-expanded", "true");
@@ -506,9 +517,10 @@ async function estimate(code, lecture, position) {
 
 function renderEstimate(code, lecture, position, data) {
   const term = getTerm(code) === "S" ? "Winter" : getTerm(code) === "F" ? "Fall" : "full-year";
+  const safeCode = escapeHtml(code);
   const historyPane = data.historyStatus === "available"
-    ? `<p class="result-summary">The waitlist shrank by at least <strong>${position} ${position === 1 ? "position" : "positions"}</strong> in ${code} in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings.</p>
-      <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${sessionLabel(item.session)} · ${item.meeting} · ${item.instructor}<br><small>${item.startWaitlist} waiting on the equivalent day · ${item.movement} spots of observed movement</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "REACHED" : "DID NOT REACH"}</strong></div>`).join("")}</div>`
+    ? `<p class="result-summary">The waitlist shrank by at least <strong>${position} ${position === 1 ? "position" : "positions"}</strong> in ${safeCode} in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings.</p>
+      <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${escapeHtml(sessionLabel(item.session))} · ${escapeHtml(item.meeting)} · ${escapeHtml(item.instructor)}<br><small>${Number(item.startWaitlist)} waiting on the equivalent day · ${Number(item.movement)} spots of observed movement</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "REACHED" : "DID NOT REACH"}</strong></div>`).join("")}</div>`
     : `<div class="history-empty"><p class="error-message">${data.historyStatus === "position-never-reached" ? "The course was found, but the waitlist has never been this high." : "The course was found, but it has no previous offerings in the archive."}</p></div>`;
   results.innerHTML = `<div class="result-grid">
     <div class="result-score"><div class="result-label">ORACLE'S ESTIMATE</div><div class="probability">${data.probability}%</div>${data.drivers.length ? `<div class="drivers"><div class="result-label driver-title">DRIVEN BY</div>${data.drivers.map(driver => `<div class="driver ${driver.contribution >= 0 ? "positive" : "negative"}"><span class="driver-sign">${driver.contribution >= 0 ? "+" : "−"}</span><span>${driver.label}</span></div>`).join("")}</div>` : ""}</div>
