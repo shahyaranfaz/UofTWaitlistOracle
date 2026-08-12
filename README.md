@@ -134,9 +134,9 @@ sequence is documented in the
 
 The Oracle is compared with three understandable baselines:
 
-- **Historical percentage:** how often cumulative observed shrinkage was at
-  least as large as the entered position in previous lectures of the course at
-  the equivalent date.
+- **Historical percentage:** the success rate of the previous lecture offerings
+  listed when you query the Oracle. A lecture counts as a success when its cumulative
+  observed shrinkage at the equivalent date was at least the entered position.
 - **Literal 10% rule:** predicts that cumulative shrinkage reaches the entered position when rank is no more than 10% of lecture
   capacity.
 - **Boosted 10% rule:** a fitted probability curve that still uses only

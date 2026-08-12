@@ -100,7 +100,7 @@
       <p>After the model and feature choices are complete, the production models are refit on all completed sessions for their season. The current session is used only to build live inputs.</p>
       <p><strong>Accuracy</strong> uses a 50% cutoff. <strong>Brier</strong> measures probability error. <strong>ECE</strong> measures calibration. <strong>AUC</strong> measures how well likely target-met rows are ranked above likely target-not-met rows.</p>
       <h3>Baselines</h3>
-      <p>The <strong>historical percentage</strong> is how often cumulative observed shrinkage was at least as large as the entered position in earlier lectures at the equivalent date. Notebook 7 reproduces it from complete archived trajectories. The <strong>literal 10% rule</strong> predicts that threshold when the position is no more than 10% of capacity. The <strong>boosted 10% rule</strong> is a fitted probability curve that still uses only position divided by capacity.</p>
+      <p>The <strong>historical percentage</strong> is the success rate of the previous lecture offerings listed when you query the Oracle. A lecture counts as a success when its cumulative observed shrinkage at the equivalent date was at least the entered position. Notebook 7 reproduces it from complete archived trajectories. The <strong>literal 10% rule</strong> predicts that threshold when the position is no more than 10% of capacity. The <strong>boosted 10% rule</strong> is a fitted probability curve that still uses only position divided by capacity.</p>
       <h3>Overall performance</h3>
       <p>The Oracle and both capacity baselines are scored on every validation row.</p>
       <div class="methodology-table-wrap"><table>
@@ -138,6 +138,6 @@
       <p>Enrollment history is maintained by <a href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">ICPRplshelp</a> and originates from U of T’s public timetable builder.</p>
     </div>
   </dialog>
-  <script type="module" src="app.js?v=22"></script>
+  <script type="module" src="app.js?v=23"></script>
 </body>
 </html>
