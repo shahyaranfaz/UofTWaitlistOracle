@@ -12,7 +12,6 @@ assert.match(app, /requestId\s*!==\s*lectureRequestId/, "Stale lecture requests 
 assert.match(app, /const session = CURRENT_SESSION;/, "Current estimates must use the manifest's current session");
 assert.doesNotMatch(app, /for\s*\(const session of \[\.\.\.SESSIONS\]\.reverse\(\)\)/, "Current data must not fall back to old sessions");
 
-assert.match(notebook, /net_drop_to_deadline/, "Notebook 1 must reconstruct the net-drop target");
 assert.match(notebook, /MAX_NEGATIVE_CENSOR_GAP_HOURS/, "Notebook 1 must enforce negative-label censoring");
 assert.match(notebook, /effective_budget/, "Notebook 1 must preserve stratified position coverage");
 

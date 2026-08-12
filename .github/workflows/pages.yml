@@ -25,7 +25,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate targets, browser features, and model artifact
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Execute V2 target reconstruction tests
+        run: python tests/test_v2_targets.py
+      - name: Validate browser features and model artifact
         run: npm test
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
