@@ -362,7 +362,11 @@ function applyCalibration(probability, calibration) {
   if (calibration.method === "platt") {
     const bounded = Math.min(Math.max(probability, 1e-6), 1 - 1e-6);
     const logit = Math.log(bounded / (1 - bounded));
-    return 1 / (1 + Math.exp(-(calibration.intercept + calibration.coefficient * logit)));
+    const parameters = calibration.parameters ?? calibration;
+    if (!Number.isFinite(parameters.intercept) || !Number.isFinite(parameters.coefficient)) {
+      throw new Error("invalid-calibration");
+    }
+    return 1 / (1 + Math.exp(-(parameters.intercept + parameters.coefficient * logit)));
   }
   if (calibration.method === "isotonic") {
     const x = calibration.x;

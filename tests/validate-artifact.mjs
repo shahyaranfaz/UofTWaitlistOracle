@@ -13,8 +13,9 @@ for (const season of ["fall_winter", "summer"]) {
   assert.ok(model.trees.every(tree => tree.some(node => node.leaf)));
   assert.ok(["none", "platt"].includes(model.calibration?.method ?? "none"));
   if (model.calibration?.method === "platt") {
-    assert.ok(Number.isFinite(model.calibration.parameters?.coefficient));
-    assert.ok(Number.isFinite(model.calibration.parameters?.intercept));
+    const parameters = model.calibration.parameters ?? model.calibration;
+    assert.ok(Number.isFinite(parameters.coefficient));
+    assert.ok(Number.isFinite(parameters.intercept));
   }
 }
 console.log("Model artifact validation passed");
