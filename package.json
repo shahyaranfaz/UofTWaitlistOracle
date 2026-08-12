@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "node tests/feature-parity.mjs && node tests/validate-artifact.mjs"
+  }
+}

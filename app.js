@@ -232,7 +232,7 @@ document.addEventListener("pointerdown", event => {
   if (!event.target.closest(".lecture-field")) closeLectureList();
 });
 
-function capacityAt(meeting, timestamp) {
+export function capacityAt(meeting, timestamp) {
   const complex = meeting.enrollmentCapComplex;
   if (!complex) return meeting.enrollmentCap;
   let capacity = complex.initialCap ?? meeting.enrollmentCap;
@@ -243,7 +243,7 @@ function capacityAt(meeting, timestamp) {
   return capacity;
 }
 
-function snapshotAt(course, deadline, daysRemaining, maximumIndex = course.timeIntervals.length - 1) {
+export function snapshotAt(course, deadline, daysRemaining, maximumIndex = course.timeIntervals.length - 1) {
   const target = deadline - daysRemaining * 86400;
   let index = 0;
   let distance = Infinity;
@@ -253,7 +253,7 @@ function snapshotAt(course, deadline, daysRemaining, maximumIndex = course.timeI
   return distance === Infinity ? -1 : index;
 }
 
-function meetingSnapshotAt(course, meeting, deadline, daysRemaining) {
+export function meetingSnapshotAt(course, meeting, deadline, daysRemaining) {
   const available = Math.min(course.timeIntervals.length, meeting.enrollmentLogs?.length ?? 0);
   return available ? snapshotAt(course, deadline, daysRemaining, available - 1) : -1;
 }
@@ -296,7 +296,7 @@ function analyze(course, deadline, daysRemaining, position) {
     .filter(Boolean);
 }
 
-function modelFeatures(code, current, meeting, position) {
+export function modelFeatures(code, current, meeting, position) {
   const course = current.course;
   const deadline = current.deadline;
   const index = meetingSnapshotAt(course, meeting, deadline, current.daysRemaining);
