@@ -144,32 +144,32 @@ The Oracle is compared with three understandable baselines:
 The Oracle and both capacity baselines are scored on every validation row. The
 historical percentage is available only when an earlier lecture reached the
 exact entered position. A second table therefore compares all four methods on
-that common subset, which covers 53.7% of Fall/Winter validation weight and
+that common subset, which covers 53.5% of Fall/Winter validation weight and
 40.7% of Summer validation weight.
 
 ### Overall performance on all validation rows
 
 | Season      |           Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|-----------------:|----------:|-----------:|-----------:|-----------:|
-| Fall/Winter |     Oracle model | **93.5%** | **0.0472** | **0.0118** | **0.9579** |
-| Fall/Winter | Literal 10% rule |     65.4% |     0.3455 |     0.3455 |     0.6428 |
-| Fall/Winter | Boosted 10% rule |     88.5% |     0.0963 |     0.0268 |     0.6936 |
-| Summer      |     Oracle model | **93.9%** | **0.0463** |     0.0270 | **0.9421** |
-| Summer      | Literal 10% rule |     71.2% |     0.2877 |     0.2877 |     0.6428 |
-| Summer      | Boosted 10% rule |     91.1% |     0.0790 | **0.0203** |     0.6783 |
+| Fall/Winter |     Oracle model | **93.3%** | **0.0483** | **0.0127** | **0.9574** |
+| Fall/Winter | Literal 10% rule |     65.1% |     0.3493 |     0.3493 |     0.6394 |
+| Fall/Winter | Boosted 10% rule |     88.2% |     0.0982 |     0.0245 |     0.6874 |
+| Summer      |     Oracle model | **93.9%** | **0.0459** |     0.0266 | **0.9433** |
+| Summer      | Literal 10% rule |     71.2% |     0.2878 |     0.2878 |     0.6439 |
+| Summer      | Boosted 10% rule |     91.1% |     0.0791 | **0.0203** |     0.6803 |
 
 ### Direct comparison on the historical-comparable subset
 
 | Season      |                Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|----------------------:|----------:|-----------:|-----------:|-----------:|
-| Fall/Winter |          Oracle model | **94.1%** | **0.0428** | **0.0105** | **0.9613** |
-| Fall/Winter | Historical percentage |     93.2% |     0.0629 |     0.0562 |     0.8211 |
-| Fall/Winter |      Literal 10% rule |     67.8% |     0.3225 |     0.3225 |     0.6435 |
-| Fall/Winter |      Boosted 10% rule |     89.7% |     0.0878 |     0.0266 |     0.6921 |
-| Summer      |          Oracle model | **95.2%** | **0.0362** |     0.0208 | **0.9489** |
-| Summer      | Historical percentage |     94.9% |     0.0491 |     0.0469 |     0.7361 |
-| Summer      |      Literal 10% rule |     75.0% |     0.2498 |     0.2498 |     0.6641 |
-| Summer      |      Boosted 10% rule |     93.5% |     0.0591 | **0.0132** |     0.7043 |
+| Fall/Winter |          Oracle model | **93.9%** | **0.0436** | **0.0121** | **0.9617** |
+| Fall/Winter | Historical percentage |     93.0% |     0.0637 |     0.0563 |     0.8227 |
+| Fall/Winter |      Literal 10% rule |     67.5% |     0.3252 |     0.3252 |     0.6387 |
+| Fall/Winter |      Boosted 10% rule |     89.5% |     0.0898 |     0.0240 |     0.6855 |
+| Summer      |          Oracle model | **95.3%** | **0.0358** |     0.0204 | **0.9505** |
+| Summer      | Historical percentage |     94.9% |     0.0488 |     0.0465 |     0.7398 |
+| Summer      |      Literal 10% rule |     75.1% |     0.2493 |     0.2493 |     0.6672 |
+| Summer      |      Boosted 10% rule |     93.5% |     0.0591 | **0.0136** |     0.7115 |
 
 The figures below visualize this common subset so that every plotted method is
 evaluated on identical rows.
@@ -178,11 +178,14 @@ evaluated on identical rows.
 
 ![Probability error across chronological holdouts](docs/assets/model-chronological-benchmark.png)
 
-On the common subset, the Oracle reduced mean Brier error by 51.2% against the
-boosted 10% rule, 31.8% against the exact historical percentage, and 86.7%
-against the literal 10% rule in Fall/Winter. The Summer reductions were 38.8%,
-26.4%, and 85.5%. Overall model performance is represented by the all-validation
+On the common subset, the Oracle reduced mean Brier error by 51.4% against the
+boosted 10% rule, 31.5% against the exact historical percentage, and 86.6%
+against the literal 10% rule in Fall/Winter. The Summer reductions were 39.3%,
+26.5%, and 85.6%. Overall model performance is represented by the all-validation
 table, not the easier historical-comparable subset.
+
+Ranks above 100 are materially harder. Their mean Brier was 0.1696 in
+Fall/Winter and 0.2289 in Summer, with mean ECE of 0.0910 and 0.2068.
 
 ### Production inference
 
