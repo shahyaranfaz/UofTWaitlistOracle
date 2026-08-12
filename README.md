@@ -1,7 +1,7 @@
 # UofT Waitlist Oracle
 
 UofT Waitlist Oracle estimates the probability that a waitlist will record
-enough net shrinkage to cover an entered position for a specific
+enough cumulative downward movement to cover an entered position for a specific
 University of Toronto course and lecture section. It combines the current
 queue, section capacity, time remaining, recent movement, course context, and
 public enrollment history in a model that runs entirely in the browser.
@@ -38,9 +38,16 @@ the actual changes between archived snapshots.
 ### Defining the target
 
 The archive does not identify individual students or record admission offers.
-The model target is therefore whether the queue's net observed decrease from a
-snapshot to the final sufficiently complete pre-deadline observation reaches a
-given rank. Later increases offset earlier decreases.
+Starting at each snapshot, the model adds every subsequently observed downward
+queue step through the final sufficiently complete pre-deadline observation:
+
+```text
+sum(max(previous queue - next queue, 0))
+```
+
+The target is whether that cumulative observed movement reaches a given rank.
+Later arrivals can refill the queue, but they do not erase movement that was
+already visible.
 
 This is not verified student advancement. A departure behind a student can
 shrink the queue without advancing that student, while a departure ahead that
@@ -50,7 +57,7 @@ an observed decrease.
 
 Each training row represents one waitlist rank in one lecture on one observed
 day. The legacy internal target column is named `cleared`, but it is 1 when
-net observed shrinkage reaches that rank. The percentage
+cumulative observed downward movement reaches that rank. The percentage
 estimates this archive-derived target, not the probability of receiving an
 offer directly.
 
@@ -146,9 +153,10 @@ The full modelling sequence is documented in the
 The Oracle is compared with three understandable baselines:
 
 - **Historical percentage:** the success rate of the previous lecture offerings
-  listed when you query the Oracle. A lecture counts as a success when its net
-  observed shrinkage at the equivalent date was at least the entered position.
-- **Literal 10% rule:** predicts that net shrinkage reaches the entered position when rank is no more than 10% of lecture
+  listed when you query the Oracle. A lecture counts as a success when its
+  cumulative observed downward movement after the equivalent date was at least
+  the entered position.
+- **Literal 10% rule:** predicts that movement reaches the entered position when rank is no more than 10% of lecture
   capacity.
 - **Boosted 10% rule:** a fitted probability curve that still uses only
   waitlist rank divided by lecture capacity.
@@ -216,7 +224,7 @@ model percentage.
 
 ### Limitations
 
-- Queue size and net shrinkage are inferred from collector snapshots rather than
+- Queue size and cumulative downward movement are inferred from collector snapshots rather than
   student records or admission offers.
 - Departures behind a rank can be counted as movement, while movement hidden by
   offsetting arrivals between snapshots can be missed. The target can therefore

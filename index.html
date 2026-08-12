@@ -63,13 +63,13 @@
       <form method="dialog"><button class="dialog-close" aria-label="Close methodology">×</button></form>
     </div>
     <div class="methodology-content">
-      <p>The Oracle estimates whether a selected U of T lecture's waitlist will record enough net shrinkage to cover the entered position. It runs entirely in the browser and is not an official forecast or academic advice.</p>
+      <p>The Oracle estimates whether a selected U of T lecture's waitlist will record enough cumulative downward movement to cover the entered position. It runs entirely in the browser and is not an official forecast or academic advice.</p>
       <h3>Reconstructing the queue</h3>
       <p>The public archive provides enrollment demand, section capacity, capacity changes, and collection timestamps. Queue size is inferred as <code>max(enrollment demand − section capacity, 0)</code>. Offerings are aligned by days before the applicable waitlist deadline.</p>
       <h3>Live queue freshness</h3>
       <p>The live collector can lag behind someone joining a waitlist. The site therefore accepts ranks up to five positions beyond the latest inferred queue. If no waitlist is recorded, ranks 1 through 5 remain available. For live model inputs, the current queue is the larger of the latest inferred queue and the entered rank. That effective queue is used for queue and queue-ratio features. Recent movement remains the actual change between archived snapshots.</p>
       <h3>Defining the target</h3>
-      <p>Each training row represents one rank in one lecture on one observed day. The target records whether the net observed queue decrease from that day to the final sufficiently complete pre-deadline observation reaches that rank. Capacity increases can contribute to the observed decrease.</p>
+      <p>Each training row represents one rank in one lecture on one observed day. From that day forward, the target adds every observed downward queue step through the final sufficiently complete pre-deadline observation. Later arrivals can refill the queue, but they do not erase movement that was already visible. The target records whether this cumulative downward movement reaches the entered rank. Capacity increases can contribute to the observed movement.</p>
       <p>This is not a record of individual admission offers. A departure behind you can shrink the queue without advancing you. A departure ahead can also be hidden when a new student joins between collector snapshots. The estimate can therefore differ from actual student advancement in either direction.</p>
       <h3>Model</h3>
       <p>The Oracle uses separate histogram gradient-boosted tree models for Fall/Winter and Summer. Each ensemble contains 200 small trees with at most 15 leaves and L2 regularization of 3. Missing numeric values are filled with the training median. A same-season Platt mapping selected on earlier sessions calibrates each model's probabilities.</p>
@@ -103,7 +103,7 @@
       <p>After the model and feature choices are complete, the production models are refit on all completed sessions for their season. The current session is used only to build live inputs.</p>
       <p><strong>Accuracy</strong> uses a 50% cutoff. <strong>Brier</strong> measures probability error. <strong>ECE</strong> measures calibration. <strong>AUC</strong> measures how well likely target-met rows are ranked above likely target-not-met rows.</p>
       <h3>Baselines</h3>
-      <p>The <strong>historical percentage</strong> is the success rate of the previous lecture offerings listed when you query the Oracle. A lecture counts as a success when its net observed shrinkage at the equivalent date was at least the entered position. The <strong>literal 10% rule</strong> predicts that threshold when the position is no more than 10% of capacity. The <strong>boosted 10% rule</strong> is a fitted probability curve that still uses only position divided by capacity.</p>
+      <p>The <strong>historical percentage</strong> is the success rate of the previous lecture offerings listed when you query the Oracle. A lecture counts as a success when its cumulative observed downward movement after the equivalent date was at least the entered position. The <strong>literal 10% rule</strong> predicts that threshold when the position is no more than 10% of capacity. The <strong>boosted 10% rule</strong> is a fitted probability curve that still uses only position divided by capacity.</p>
       <h3>Overall performance</h3>
       <p>The Oracle and both capacity baselines are scored on every validation row.</p>
       <div class="methodology-table-wrap"><table>
@@ -138,11 +138,11 @@
       <p>The locked latest-session benchmark and figure generation are available in <a href="https://github.com/shahyaranfaz/UofTWaitlistOracle/blob/master/notebooks/v2/04_latest_session_evaluation_and_release.ipynb" target="_blank" rel="noreferrer">V2 Notebook 4</a>.</p>
       <h3>Production and limitations</h3>
       <p>The exported tree splits, leaf values, and preprocessing medians run locally in the browser. Historical outcomes are fetched and displayed separately. They do not change the model percentage, and the Oracle can estimate a new course or an unusually high rank without them.</p>
-      <p>Net shrinkage is inferred from aggregate snapshots rather than student records. Departures behind the entered position may be counted, and movement hidden by offsetting arrivals between snapshots may be missed. Scheduling, reserved seats, and student behaviour can change between years. Summer has fewer comparable observations and should be treated with more caution.</p>
+      <p>Cumulative downward movement is inferred from aggregate snapshots rather than student records. Departures behind the entered position may be counted, and departures hidden by offsetting arrivals between snapshots may be missed. Scheduling, reserved seats, and student behaviour can change between years. Summer has fewer comparable observations and should be treated with more caution.</p>
       <h3>Source</h3>
       <p>Enrollment history is maintained by <a href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">ICPRplshelp</a> and originates from U of T’s public timetable builder.</p>
     </div>
   </dialog>
-  <script type="module" src="app.js?v=40"></script>
+  <script type="module" src="app.js?v=41"></script>
 </body>
 </html>
