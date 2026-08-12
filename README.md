@@ -25,6 +25,16 @@ max(enrollment demand - section capacity, 0)
 Offerings are aligned by days remaining before the applicable U of T waitlist
 deadline, rather than by calendar date or enrollment deadline.
 
+### Live queue freshness
+
+The live collector can lag behind a student joining a waitlist. The website
+therefore accepts ranks up to five positions beyond the latest inferred queue.
+When no waitlist is recorded, ranks 1 through 5 remain available for this
+freshness allowance. For live model inputs, the current queue is the larger of
+the latest inferred queue and the entered rank. That effective queue is used
+for the model's queue and queue-ratio features. Recent-movement features remain
+the actual changes between archived snapshots.
+
 ### Defining the target
 
 The archive does not identify individual students or record admission offers.

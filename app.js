@@ -131,7 +131,7 @@ async function loadLectures(code) {
     lectures.forEach(meeting => {
       const demand = meeting.enrollmentLogs[snapshotIndex] ?? 0;
       const observedWaitlist = Math.max(demand - capacityAt(meeting, snapshotTime), 0);
-      lectureRankLimits.set(meeting.meetingNumber, observedWaitlist + 5);
+      lectureRankLimits.set(meeting.meetingNumber, observedWaitlist + 6);
     });
     lectureList.innerHTML = lectures.map(meeting => {
       const instructors = meeting.instructors?.map(i => `${i.firstName} ${i.lastName}`).join(", ");
@@ -304,7 +304,7 @@ function modelFeatures(code, current, meeting, position) {
     0
   );
   const observedWaitlist = waitlistAt(index);
-  const waitlist = observedWaitlist;
+  const waitlist = Math.max(observedWaitlist, position);
   const movement3 = waitlistAt(index3) - observedWaitlist;
   const movement7 = waitlistAt(index7) - observedWaitlist;
   const days = current.daysRemaining;

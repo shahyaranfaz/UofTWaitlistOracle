@@ -64,8 +64,11 @@
     </div>
     <div class="methodology-content">
       <p>The Oracle estimates whether a selected U of T lecture's waitlist will record enough cumulative shrinkage to cover the entered position. It runs entirely in the browser and is not an official forecast or academic advice.</p>
-      <h3>Data and target</h3>
+      <h3>Reconstructing the queue</h3>
       <p>The public archive provides enrollment demand, section capacity, capacity changes, and collection timestamps. Queue size is inferred as <code>max(enrollment demand − section capacity, 0)</code>. Offerings are aligned by days before the applicable waitlist deadline.</p>
+      <h3>Live queue freshness</h3>
+      <p>The live collector can lag behind someone joining a waitlist. The site therefore accepts ranks up to five positions beyond the latest inferred queue. If no waitlist is recorded, ranks 1 through 5 remain available. For live model inputs, the current queue is the larger of the latest inferred queue and the entered rank. That effective queue is used for queue and queue-ratio features. Recent movement remains the actual change between archived snapshots.</p>
+      <h3>Defining the target</h3>
       <p>Each training row represents one rank in one lecture on one observed day. The target records whether cumulative observed downward queue movement from that day to the deadline reaches that rank. Capacity increases can contribute to the observed decrease.</p>
       <p>This is not a record of individual admission offers. A departure behind you can shrink the queue without advancing you. A departure ahead can also be hidden when a new student joins between collector snapshots. The estimate can therefore differ from actual student advancement in either direction.</p>
       <h3>Model</h3>
@@ -139,6 +142,6 @@
       <p>Enrollment history is maintained by <a href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">ICPRplshelp</a> and originates from U of T’s public timetable builder.</p>
     </div>
   </dialog>
-  <script type="module" src="app.js?v=34"></script>
+  <script type="module" src="app.js?v=38"></script>
 </body>
 </html>
