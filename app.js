@@ -104,7 +104,7 @@ async function loadSessionManifest() {
 }
 
 function loadModel() {
-  modelPromise ??= fetch("model/oracle-model.json?v=8")
+  modelPromise ??= fetch("model/oracle-model.json?v=9")
     .then(response => {
       if (!response.ok) throw new Error(`Model ${response.status}`);
         return response.json();
@@ -611,6 +611,7 @@ async function getCurrentContext(code) {
 
 async function estimate(code, lecture, position) {
   const [current, artifact] = await Promise.all([getCurrentContext(code), loadModel()]);
+  if (artifact?.schema_version === 7) throw new Error("model-target-obsolete");
   const modelMaxPosition = Number(artifact?.training_support?.max_position);
   if (Number.isFinite(modelMaxPosition) && position > modelMaxPosition) {
     throw new Error("rank-outside-model");
@@ -683,6 +684,8 @@ function renderError(error) {
       ? "The model and historical percentage are both unavailable for this query."
     : error.message === "model-not-validated"
       ? "The latest model has not passed its release checks, so no estimate is available."
+    : error.message === "model-target-obsolete"
+      ? "The model is being rebuilt for the cumulative movement target. Try again after the next update."
     : error.message === "current-data-unavailable"
       ? "The current session data could not be loaded. Refresh and try again."
       : "I couldn't find that exact course code in the public archive.";

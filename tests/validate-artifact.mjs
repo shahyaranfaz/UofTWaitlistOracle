@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 const artifact = JSON.parse(fs.readFileSync(new URL("../model/oracle-model.json", import.meta.url), "utf8"));
 assert.ok(Number.isInteger(artifact.schema_version));
 assert.ok(artifact.schema_version >= 6);
+if (artifact.schema_version >= 8) assert.equal(artifact.target, "cumulative_observed_downward_movement");
 for (const season of ["fall_winter", "summer"]) {
   const model = artifact.models?.[season];
   assert.ok(model, `Missing ${season} model`);
