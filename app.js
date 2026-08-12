@@ -52,7 +52,7 @@ function applyPositionLimit() {
     return;
   }
   const limit = Math.max(1, lectureRankLimits.get(lectureValue.value) ?? 1);
-  document.querySelector("#position-help").textContent = `Current queue range: 1–${limit - 1}`;
+  document.querySelector("#position-help").textContent = `Current range: 1–${limit - 1}`;
   updateRankState();
 }
 
