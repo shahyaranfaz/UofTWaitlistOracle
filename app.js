@@ -539,6 +539,9 @@ async function estimate(code, lecture, position) {
   const seasonalKey = isSummer(current.session) ? "summer" : "fall_winter";
   // Schema 4 is the first artifact trained on cumulative observed queue drops.
   const selectedModel = artifact?.schema_version >= 4 ? artifact.models?.[seasonalKey] : null;
+  if (artifact?.schema_version >= 7 && selectedModel?.quality !== "validated") {
+    throw new Error("model-not-validated");
+  }
   const modelProbability = selectedModel
     ? predictModel(selectedModel, features)
     : historicalProbability;
@@ -578,6 +581,8 @@ function renderError(error) {
       ? "This lecture does not have enough current history for an estimate."
     : error.message === "model-unavailable"
       ? "The model and historical percentage are both unavailable for this query."
+    : error.message === "model-not-validated"
+      ? "The latest model has not passed its release checks, so no estimate is available."
       : "I couldn't find that exact course code in the public archive.";
   results.innerHTML = `<p class="result-label">THE ORACLE CAME UP EMPTY</p><p class="error-message">${copy}</p>`;
   results.hidden = false;
