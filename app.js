@@ -126,10 +126,11 @@ async function loadLectures(code) {
     const lectures = course.meetings.filter(meeting =>
       !meeting.isCancelled && meeting.enrollmentLogs?.length && /^LEC/i.test(meeting.meetingNumber ?? "")
     );
-    const snapshotIndex = snapshotAt(course, current.deadline, current.daysRemaining);
-    const snapshotTime = course.timeIntervals[snapshotIndex];
     lectures.forEach(meeting => {
-      const demand = meeting.enrollmentLogs[snapshotIndex] ?? 0;
+      const snapshotIndex = meetingSnapshotAt(course, meeting, current.deadline, current.daysRemaining);
+      if (snapshotIndex < 0) return;
+      const snapshotTime = course.timeIntervals[snapshotIndex];
+      const demand = meeting.enrollmentLogs[snapshotIndex];
       const observedWaitlist = Math.max(demand - capacityAt(meeting, snapshotTime), 0);
       lectureRankLimits.set(meeting.meetingNumber, observedWaitlist + 6);
     });
@@ -242,21 +243,27 @@ function capacityAt(meeting, timestamp) {
   return capacity;
 }
 
-function snapshotAt(course, deadline, daysRemaining) {
+function snapshotAt(course, deadline, daysRemaining, maximumIndex = course.timeIntervals.length - 1) {
   const target = deadline - daysRemaining * 86400;
   let index = 0;
   let distance = Infinity;
-  course.timeIntervals.forEach((time, i) => {
+  course.timeIntervals.slice(0, maximumIndex + 1).forEach((time, i) => {
     if (time <= deadline && Math.abs(time - target) < distance) { index = i; distance = Math.abs(time - target); }
   });
-  return index;
+  return distance === Infinity ? -1 : index;
+}
+
+function meetingSnapshotAt(course, meeting, deadline, daysRemaining) {
+  const available = Math.min(course.timeIntervals.length, meeting.enrollmentLogs?.length ?? 0);
+  return available ? snapshotAt(course, deadline, daysRemaining, available - 1) : -1;
 }
 
 function analyzeMeeting(course, meeting, deadline, daysRemaining, position) {
-  const startIndex = snapshotAt(course, deadline, daysRemaining);
-  const endIndex = snapshotAt(course, deadline, 0);
+  const startIndex = meetingSnapshotAt(course, meeting, deadline, daysRemaining);
+  const endIndex = meetingSnapshotAt(course, meeting, deadline, 0);
+  if (startIndex < 0 || endIndex < 0) return null;
   const startTime = course.timeIntervals[startIndex];
-  const startDemand = meeting.enrollmentLogs[startIndex] ?? 0;
+  const startDemand = meeting.enrollmentLogs[startIndex];
   const startWaitlist = Math.max(startDemand - capacityAt(meeting, startTime), 0);
   // A position that never existed in that offering is not evidence either way.
   if (startWaitlist < position) return null;
@@ -292,15 +299,16 @@ function analyze(course, deadline, daysRemaining, position) {
 function modelFeatures(code, current, meeting, position) {
   const course = current.course;
   const deadline = current.deadline;
-  const index = snapshotAt(course, deadline, current.daysRemaining);
-  const index3 = snapshotAt(course, deadline, current.daysRemaining + 3);
-  const index7 = snapshotAt(course, deadline, current.daysRemaining + 7);
+  const index = meetingSnapshotAt(course, meeting, deadline, current.daysRemaining);
+  const index3 = meetingSnapshotAt(course, meeting, deadline, current.daysRemaining + 3);
+  const index7 = meetingSnapshotAt(course, meeting, deadline, current.daysRemaining + 7);
+  if (index < 0 || index3 < 0 || index7 < 0) throw new Error("lecture-data-unavailable");
   const time = course.timeIntervals[index];
   const time7 = course.timeIntervals[index7];
   const capacity = capacityAt(meeting, time);
   const capacity7 = capacityAt(meeting, time7);
   const waitlistAt = snapshotIndex => Math.max(
-    (meeting.enrollmentLogs[snapshotIndex] ?? 0) - capacityAt(meeting, course.timeIntervals[snapshotIndex]),
+    meeting.enrollmentLogs[snapshotIndex] - capacityAt(meeting, course.timeIntervals[snapshotIndex]),
     0
   );
   const observedWaitlist = waitlistAt(index);
@@ -566,6 +574,8 @@ function renderError(error) {
       ? "Choose one of the courses shown in the list."
     : error.message === "invalid-lecture"
       ? "Choose one of the available lecture sections."
+    : error.message === "lecture-data-unavailable"
+      ? "This lecture does not have enough current history for an estimate."
     : error.message === "model-unavailable"
       ? "The model and historical percentage are both unavailable for this query."
       : "I couldn't find that exact course code in the public archive.";
