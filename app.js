@@ -566,15 +566,28 @@ async function deadlineFor(session, code) {
 }
 
 async function getCurrentContext(code) {
-  for (const session of [...SESSIONS].reverse()) {
-    try {
-      const [course, deadline] = await Promise.all([fetchJson(`${session}/${code}.json`), deadlineFor(session, code)]);
-      if (!deadline) continue;
-      const now = Math.floor(Date.now() / 1000);
-      return { session, deadline, daysRemaining: Math.max(0, Math.round((deadline - Math.min(now, deadline)) / 86400)), course };
-    } catch { /* Course is not offered in this session. */ }
+  const session = SESSIONS.at(-1);
+  let course;
+  try {
+    course = await fetchJson(`${session}/${code}.json`);
+  } catch (error) {
+    if (error.message === "404") throw new Error("course-not-found");
+    throw new Error("current-data-unavailable", {cause: error});
   }
-  throw new Error("course-not-found");
+  try {
+    const deadline = await deadlineFor(session, code);
+    if (!deadline) throw new Error("current-data-unavailable");
+    const now = Math.floor(Date.now() / 1000);
+    return {
+      session,
+      deadline,
+      daysRemaining: Math.max(0, Math.round((deadline - Math.min(now, deadline)) / 86400)),
+      course
+    };
+  } catch (error) {
+    if (error.message === "current-data-unavailable") throw error;
+    throw new Error("current-data-unavailable", {cause: error});
+  }
 }
 
 async function estimate(code, lecture, position) {
@@ -651,6 +664,8 @@ function renderError(error) {
       ? "The model and historical percentage are both unavailable for this query."
     : error.message === "model-not-validated"
       ? "The latest model has not passed its release checks, so no estimate is available."
+    : error.message === "current-data-unavailable"
+      ? "The current session data could not be loaded. Refresh and try again."
       : "I couldn't find that exact course code in the public archive.";
   results.innerHTML = `<p class="result-label">THE ORACLE CAME UP EMPTY</p><p class="error-message">${copy}</p>`;
   results.hidden = false;
