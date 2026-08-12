@@ -456,15 +456,79 @@ function categoricalContribution(model, feature, value) {
   return 0;
 }
 
+export function modelMedian(model, feature, fallback) {
+  const index = model.numeric_features.indexOf(feature);
+  const value = index >= 0 ? Number(model.imputation_values[index]) : NaN;
+  return Number.isFinite(value) ? value : fallback;
+}
+
+export function coherentCounterfactual(model, features, group) {
+  const counterfactual = {...features};
+  const recomputeRankAndQueue = () => {
+    counterfactual.position_to_capacity = counterfactual.capacity ? counterfactual.position / counterfactual.capacity : 0;
+    counterfactual.waitlist_to_capacity = counterfactual.capacity ? counterfactual.waitlist / counterfactual.capacity : 0;
+    counterfactual.position_to_waitlist = counterfactual.waitlist ? Math.min(counterfactual.position / counterfactual.waitlist, 1) : 1;
+    counterfactual.log_waitlist = Math.log1p(counterfactual.waitlist);
+    counterfactual.position_ratio_near_7d = counterfactual.position_to_capacity * counterfactual.near_deadline_7d;
+    counterfactual.waitlist_ratio_near_7d = counterfactual.waitlist_to_capacity * counterfactual.near_deadline_7d;
+    counterfactual.rank_over_30pct = Number(counterfactual.position_to_capacity > 0.30);
+  };
+  const recomputeTiming = () => {
+    const days = counterfactual.days_to_deadline;
+    counterfactual.days_squared = days ** 2;
+    counterfactual.near_deadline_7d = Number(days <= 7);
+    counterfactual.days_under_7 = Math.max(7 - days, 0);
+    counterfactual.days_under_14 = Math.max(14 - days, 0);
+    counterfactual.days_over_60 = Math.max(days - 60, 0);
+    counterfactual.second_subsession_days = Number(counterfactual.term === "winter") * days;
+    counterfactual.second_subsession_near_7d = Number(counterfactual.term === "winter") * counterfactual.near_deadline_7d;
+    counterfactual.winter_near_7d = counterfactual.term_winter * counterfactual.near_deadline_7d;
+    counterfactual.scar_near_7d = counterfactual.campus_scar * counterfactual.near_deadline_7d;
+    recomputeRankAndQueue();
+  };
+  if (group === "rank") {
+    counterfactual.position = Math.max(1, modelMedian(model, "position", counterfactual.position));
+    counterfactual.waitlist = Math.max(counterfactual.waitlist, counterfactual.position);
+    recomputeRankAndQueue();
+  } else if (group === "waitlist") {
+    counterfactual.waitlist = Math.max(counterfactual.position, modelMedian(model, "waitlist", counterfactual.waitlist));
+    recomputeRankAndQueue();
+  } else if (group === "timing") {
+    counterfactual.days_to_deadline = Math.max(0, modelMedian(model, "days_to_deadline", counterfactual.days_to_deadline));
+    recomputeTiming();
+  } else if (group === "movement") {
+    counterfactual.movement_3d = modelMedian(model, "movement_3d", counterfactual.movement_3d);
+    counterfactual.movement_7d = modelMedian(model, "movement_7d", counterfactual.movement_7d);
+    counterfactual.movement_velocity_7d = counterfactual.movement_7d / 7;
+  } else if (group === "capacity") {
+    counterfactual.capacity = Math.max(1, modelMedian(model, "capacity", counterfactual.capacity));
+    counterfactual.capacity_changed_7d = Number(modelMedian(model, "capacity_changed_7d", counterfactual.capacity_changed_7d) >= 0.5);
+    recomputeRankAndQueue();
+  } else if (group === "campus") {
+    const erin = modelMedian(model, "campus_erin", 0);
+    const scar = modelMedian(model, "campus_scar", 0);
+    counterfactual.campus = erin >= 0.5 ? "ERIN" : scar >= 0.5 ? "SCAR" : "ARTSC";
+    counterfactual.campus_erin = Number(counterfactual.campus === "ERIN");
+    counterfactual.campus_scar = Number(counterfactual.campus === "SCAR");
+    counterfactual.scar_near_7d = counterfactual.campus_scar * counterfactual.near_deadline_7d;
+  } else if (group === "term") {
+    const winter = modelMedian(model, "term_winter", 0);
+    const fullYear = modelMedian(model, "term_full_year", 0);
+    counterfactual.term = winter >= 0.5 ? "winter" : fullYear >= 0.5 ? "full_year" : "fall";
+    counterfactual.term_winter = Number(counterfactual.term === "winter");
+    counterfactual.term_full_year = Number(counterfactual.term === "full_year");
+    recomputeTiming();
+  }
+  return counterfactual;
+}
+
 function modelDrivers(model, features) {
   if (model.trees) {
     const probability = predictModel(model, features);
-    const ranked = Object.entries(DRIVER_GROUPS).map(([group, definition]) => {
-      const counterfactual = {...features};
-      definition.features.forEach(feature => {
-        const index = model.numeric_features.indexOf(feature);
-        if (index >= 0) counterfactual[feature] = model.imputation_values[index];
-      });
+    const ranked = Object.entries(DRIVER_GROUPS).filter(([, definition]) =>
+      definition.features.some(feature => model.numeric_features.includes(feature))
+    ).map(([group, definition]) => {
+      const counterfactual = coherentCounterfactual(model, features, group);
       const contribution = probability - predictModel(model, counterfactual);
       return {label: definition.label, contribution, magnitude: Math.abs(contribution)};
     }).sort((left, right) => right.magnitude - left.magnitude);

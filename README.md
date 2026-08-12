@@ -83,12 +83,13 @@ Lecture identifiers such as `LEC0101` are not themselves predictors.
 
 ### Understanding Driven by
 
-The **Driven by** list is a local explanation of the displayed estimate. For
-each feature group, the browser calculates the prediction again after replacing
-that group's values with their training medians. A `+` means the entered case
-raises the estimate relative to those typical values, while a `−` means it
-lowers it. Because trees contain interactions, these effects do not need to add
-up to the displayed percentage and should not be interpreted as causal.
+The **Driven by** list is a local explanation of the displayed estimate. The
+browser changes one underlying factor toward its typical training value and
+recomputes every dependent ratio and interaction together. A `+` means the
+entered case raises the estimate relative to that coherent comparison, while a
+`−` means it lowers it. Because trees contain interactions, these effects do
+not need to add up to the displayed percentage and should not be interpreted as
+causal.
 
 ### Training and validation
 

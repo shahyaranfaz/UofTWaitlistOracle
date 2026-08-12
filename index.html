@@ -85,7 +85,7 @@
       </ul>
       <p>The selected lecture supplies live queue, capacity, and movement inputs. A lecture identifier such as <code>LEC0101</code> is not a feature.</p>
       <h3>Understanding Driven by</h3>
-      <p>The <strong>Driven by</strong> list is a local explanation of the displayed estimate. For each feature group, the browser calculates the prediction again after replacing that group’s values with their training medians. A <code>+</code> means the entered case raises the estimate relative to those typical values, while a <code>−</code> means it lowers it. Because trees contain interactions, these effects do not need to add up to the displayed percentage and should not be interpreted as causal.</p>
+      <p>The <strong>Driven by</strong> list is a local explanation of the displayed estimate. The browser changes one underlying factor toward its typical training value and recomputes every dependent ratio and interaction together. A <code>+</code> means the entered case raises the estimate relative to that coherent comparison, while a <code>−</code> means it lowers it. Because trees contain interactions, these effects do not need to add up to the displayed percentage and should not be interpreted as causal.</p>
       <h3>Training and validation</h3>
       <p>The archive covers completed sessions from 2022 through Summer 2026. Validation follows time rather than randomly mixing rows. Each fold trains on all earlier sessions and predicts the next one:</p>
       <div class="methodology-table-wrap"><table>

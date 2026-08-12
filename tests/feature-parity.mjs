@@ -27,7 +27,10 @@ vm.runInContext(`
   ${functionSource("snapshotAt")}
   ${functionSource("meetingSnapshotAt")}
   ${functionSource("modelFeatures")}
+  ${functionSource("modelMedian")}
+  ${functionSource("coherentCounterfactual")}
   globalThis.build = modelFeatures;
+  globalThis.counterfactual = coherentCounterfactual;
 `, sandbox);
 
 const deadline = 2_000_000_000;
@@ -85,4 +88,14 @@ for (const [feature, value] of Object.entries(expected)) {
 const shortMeeting = {...meeting, enrollmentLogs: [125, 127]};
 const shortFeatures = sandbox.build("CSC369H1F", current, shortMeeting, 20);
 assert.equal(shortFeatures.waitlist, 27, "Short logs must use their last real value, not a fabricated zero");
+
+const numericFeatures = Object.keys(expected).filter(key => typeof expected[key] === "number");
+const model = {numeric_features: numericFeatures, imputation_values: numericFeatures.map(key => expected[key])};
+const rankComparison = sandbox.counterfactual(model, actual, "rank");
+assert.ok(rankComparison.position <= rankComparison.waitlist);
+assert.ok(Math.abs(rankComparison.position_to_capacity - rankComparison.position / rankComparison.capacity) < 1e-12);
+assert.ok(Math.abs(rankComparison.position_to_waitlist - rankComparison.position / rankComparison.waitlist) < 1e-12);
+const timingComparison = sandbox.counterfactual(model, actual, "timing");
+assert.equal(timingComparison.near_deadline_7d, Number(timingComparison.days_to_deadline <= 7));
+assert.equal(timingComparison.days_squared, timingComparison.days_to_deadline ** 2);
 console.log("Production feature parity fixture passed");
