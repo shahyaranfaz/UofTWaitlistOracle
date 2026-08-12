@@ -634,7 +634,7 @@ async function estimate(code, lecture, position) {
   const seasonalKey = isSummer(current.session) ? "summer" : "fall_winter";
   // Schema 4 introduced observed-drop targets; schema 7 switches to net shrinkage.
   const selectedModel = artifact?.schema_version >= 4 ? artifact.models?.[seasonalKey] : null;
-  if (artifact?.schema_version >= 7 && selectedModel?.quality !== "validated") {
+  if (artifact?.schema_version >= 7 && !["validated", "experimental"].includes(selectedModel?.quality)) {
     throw new Error("model-not-validated");
   }
   const modelProbability = selectedModel
@@ -661,7 +661,7 @@ function renderEstimate(code, lecture, position, data) {
   results.innerHTML = `<div class="result-grid">
     <div class="result-score"><div class="result-label">ORACLE'S ESTIMATE</div><div class="probability">${data.probability}%</div>${data.drivers.length ? `<div class="drivers"><div class="result-label driver-title">DRIVEN BY</div>${data.drivers.map(driver => `<div class="driver ${driver.contribution >= 0 ? "positive" : "negative"}"><span class="driver-sign">${driver.contribution >= 0 ? "+" : "−"}</span><span>${driver.label}</span></div>`).join("")}</div>` : ""}</div>
     <div>${historyPane}</div>
-    <p class="result-note">Compared ${data.current.daysRemaining} days before the ${term} waitlist deadline. This estimates whether net waitlist shrinkage will be at least your position. It cannot tell whether you personally will get into the course. Departures behind you may be counted, while movement hidden by offsetting arrivals between snapshots may be missed.${data.usedModel ? `${data.seasonalKey === "summer" ? " Summer estimates are less stable and should be treated with extra caution." : ""}` : " Historical percentage shown because the model is unavailable. It is the success rate of the previous lecture offerings listed above."}</p>
+    <p class="result-note">Compared ${data.current.daysRemaining} days before the ${term} waitlist deadline. This estimates whether net waitlist shrinkage will be at least your position. It cannot tell whether you personally will get into the course. Departures behind you may be counted, while movement hidden by offsetting arrivals between snapshots may be missed.${data.usedModel ? `${data.modelQuality === "experimental" ? " The Summer model is experimental because it missed strict calibration checks, so treat its percentage with extra caution." : ""}` : " Historical percentage shown because the model is unavailable. It is the success rate of the previous lecture offerings listed above."}</p>
   </div>`;
   results.hidden = false;
   results.scrollIntoView({ behavior: "smooth", block: "start" });

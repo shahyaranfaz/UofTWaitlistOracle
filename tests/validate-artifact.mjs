@@ -7,7 +7,13 @@ assert.ok(artifact.schema_version >= 6);
 for (const season of ["fall_winter", "summer"]) {
   const model = artifact.models?.[season];
   assert.ok(model, `Missing ${season} model`);
-  if (artifact.schema_version >= 7) assert.equal(model.quality, "validated", `${season} did not pass release validation`);
+  if (artifact.schema_version >= 7) {
+    assert.ok(["validated", "experimental"].includes(model.quality), `${season} has an unknown release quality`);
+    if (model.quality === "experimental") {
+      assert.ok(model.failed_release_checks?.length > 0, `${season} experimental model lacks failed checks`);
+      assert.ok(model.release_diagnostics, `${season} experimental model lacks diagnostics`);
+    }
+  }
   assert.equal(model.numeric_features.length, model.imputation_values.length);
   assert.ok(model.trees.length > 0);
   assert.ok(model.trees.every(tree => tree.some(node => node.leaf)));

@@ -59,7 +59,8 @@ offer directly.
 The Oracle uses separate histogram gradient-boosted tree models for
 Fall/Winter and Summer. Each ensemble contains 200 small trees with at most 15
 leaves and L2 regularization of 3. Missing numeric values are filled with the
-training median. No post-hoc probability calibration is applied.
+training median. A same-season Platt mapping selected on earlier sessions
+calibrates each model's probabilities.
 
 The production model has 26 numeric features:
 
@@ -112,11 +113,12 @@ have existed at that time. No rows from the validation session enter its
 training data, preprocessing statistics, category encoding, or capacity-only
 baseline fit.
 
-Metrics are calculated separately for each holdout and then averaged across
-the three folds in that season. After model and feature decisions are complete,
-the two production models are refit on all completed sessions available to
-their season. The current session is used only to construct live prediction
-inputs.
+The earlier holdouts are used for development selection and same-season
+calibration. The last session of each season is evaluated only after features,
+hyperparameters, calibration choices, and release gates are locked. The tables
+below report those latest-session results. After evaluation, the two production
+models are refit on all completed sessions available to their season. The
+current session is used only to construct live prediction inputs.
 
 After sampling, position rows are renormalized so every retained lecture
 offering contributes total weight 1 and each retained day contributes equally
@@ -136,11 +138,10 @@ Four metrics capture different parts of performance:
 
 ## Benchmark against simple rules
 
-The complete benchmark calculation, fold-level results, and figure generation
-are available in
-[Notebook 7](notebooks/v1/07_production_benchmark.ipynb). The full modelling
-sequence is documented in the
-[version 1 notebook guide](notebooks/v1/README.md).
+The locked latest-session benchmark and figure generation are available in
+[V2 Notebook 4](notebooks/v2/04_latest_session_evaluation_and_release.ipynb).
+The full modelling sequence is documented in the
+[version 2 notebook guide](notebooks/v2/README.md).
 
 The Oracle is compared with three understandable baselines:
 
@@ -155,32 +156,32 @@ The Oracle is compared with three understandable baselines:
 The Oracle and both capacity baselines are scored on every validation row. The
 historical percentage is available only when an earlier lecture reached the
 exact entered position. A second table therefore compares all four methods on
-that common subset, which covers 53.5% of Fall/Winter validation weight and
-40.7% of Summer validation weight.
+that common subset, which covers 72.3% of Fall/Winter evaluation weight and
+54.6% of Summer evaluation weight.
 
-### Overall performance on all validation rows
+### Latest-session performance on all evaluation rows
 
 | Season      |           Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|-----------------:|----------:|-----------:|-----------:|-----------:|
-| Fall/Winter |     Oracle model | **93.3%** | **0.0483** | **0.0127** | **0.9574** |
-| Fall/Winter | Literal 10% rule |     65.1% |     0.3493 |     0.3493 |     0.6394 |
-| Fall/Winter | Boosted 10% rule |     88.2% |     0.0982 |     0.0245 |     0.6874 |
-| Summer      |     Oracle model | **93.9%** | **0.0459** |     0.0266 | **0.9433** |
-| Summer      | Literal 10% rule |     71.2% |     0.2878 |     0.2878 |     0.6439 |
-| Summer      | Boosted 10% rule |     91.1% |     0.0791 | **0.0203** |     0.6803 |
+| Fall/Winter |     Oracle model | **85.6%** | **0.1150** |     0.0319 | **0.7580** |
+| Fall/Winter | Literal 10% rule |     82.8% |     0.1721 |     0.1721 |     0.4965 |
+| Fall/Winter | Boosted 10% rule |     83.6% |     0.1374 | **0.0065** |     0.4909 |
+| Summer      |     Oracle model | **77.7%** | **0.1646** |     0.0681 | **0.6995** |
+| Summer      | Literal 10% rule |     69.6% |     0.3040 |     0.3040 |     0.6049 |
+| Summer      | Boosted 10% rule |     76.6% |     0.1737 | **0.0267** |     0.6192 |
 
 ### Direct comparison on the historical-comparable subset
 
 | Season      |                Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|----------------------:|----------:|-----------:|-----------:|-----------:|
-| Fall/Winter |          Oracle model | **93.9%** | **0.0436** | **0.0121** | **0.9617** |
-| Fall/Winter | Historical percentage |     93.0% |     0.0637 |     0.0563 |     0.8227 |
-| Fall/Winter |      Literal 10% rule |     67.5% |     0.3252 |     0.3252 |     0.6387 |
-| Fall/Winter |      Boosted 10% rule |     89.5% |     0.0898 |     0.0240 |     0.6855 |
-| Summer      |          Oracle model | **95.3%** | **0.0358** |     0.0204 | **0.9505** |
-| Summer      | Historical percentage |     94.9% |     0.0488 |     0.0465 |     0.7398 |
-| Summer      |      Literal 10% rule |     75.1% |     0.2493 |     0.2493 |     0.6672 |
-| Summer      |      Boosted 10% rule |     93.5% |     0.0591 | **0.0136** |     0.7115 |
+| Fall/Winter |          Oracle model | **86.5%** | **0.1080** |     0.0299 | **0.7697** |
+| Fall/Winter | Historical percentage |     83.0% |     0.1563 |     0.1452 |     0.6546 |
+| Fall/Winter |      Literal 10% rule |     84.2% |     0.1584 |     0.1584 |     0.4969 |
+| Fall/Winter |      Boosted 10% rule |     84.8% |     0.1295 | **0.0173** |     0.4906 |
+| Summer      |          Oracle model | **78.6%** | **0.1606** |     0.0667 | **0.6948** |
+| Summer      | Historical percentage |     77.0% |     0.2218 |     0.2135 |     0.5992 |
+| Summer      |      Literal 10% rule |     71.1% |     0.2886 |     0.2886 |     0.5988 |
+| Summer      |      Boosted 10% rule |     78.0% |     0.1659 | **0.0279** |     0.6104 |
 
 The figures below visualize this common subset so that every plotted method is
 evaluated on identical rows.
@@ -189,14 +190,21 @@ evaluated on identical rows.
 
 ![Probability error across chronological holdouts](docs/assets/model-chronological-benchmark.png)
 
-On the common subset, the Oracle reduced mean Brier error by 51.4% against the
-boosted 10% rule, 31.5% against the exact historical percentage, and 86.6%
-against the literal 10% rule in Fall/Winter. The Summer reductions were 39.3%,
-26.5%, and 85.6%. Overall model performance is represented by the all-validation
+On the common subset, the Oracle reduced Brier error by 16.7% against the
+boosted 10% rule, 30.9% against the historical percentage, and 31.8% against
+the literal 10% rule in Fall/Winter. The Summer reductions were 3.1%, 27.6%,
+and 44.3%. Overall model performance is represented by the all-evaluation
 table, not the easier historical-comparable subset.
 
-Ranks above 100 are materially harder. Their mean Brier was 0.1696 in
-Fall/Winter and 0.2289 in Summer, with mean ECE of 0.0910 and 0.2068.
+### Release status
+
+Fall/Winter passed every pre-locked release gate and is marked **validated**.
+Summer beat the literal and boosted 10% baselines, but missed the strict ECE,
+near-deadline, large-queue, and probability-bin calibration gates. It is
+therefore released as **experimental**. Its latest-session ECE was 0.0681,
+near-deadline gap 0.0894, large-queue gap 0.1507, and maximum eligible
+probability-bin gap 0.1276. Summer percentages should be treated with extra
+caution.
 
 ### Production inference
 
