@@ -14,5 +14,7 @@ assert.doesNotMatch(app, /for\s*\(const session of \[\.\.\.SESSIONS\]\.reverse\(
 
 assert.match(notebook, /MAX_NEGATIVE_CENSOR_GAP_HOURS/, "Notebook 1 must enforce negative-label censoring");
 assert.match(notebook, /effective_budget/, "Notebook 1 must preserve stratified position coverage");
+assert.match(notebook, /observed_downward_movement/, "Notebook 1 must build the cumulative movement target");
+assert.doesNotMatch(notebook, /net_drop_to_deadline/, "Notebook 1 must not restore the terminal net-shrinkage target");
 
 console.log("Project maintenance contracts passed");
