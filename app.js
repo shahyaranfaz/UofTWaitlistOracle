@@ -62,11 +62,11 @@ function markQueryChanged() {
   updateFormState();
 }
 
-const campusDigit = code => code.match(/[HY]([135])[FSY]$/)?.[1] ?? "1";
-const campusFaculty = code => campusDigit(code) === "3" ? "SCAR" : campusDigit(code) === "5" ? "ERIN" : "ARTSC";
+export function campusDigit(code) { return code.match(/[HY]([135])[FSY]$/)?.[1] ?? "1"; }
+export function campusFaculty(code) { return campusDigit(code) === "3" ? "SCAR" : campusDigit(code) === "5" ? "ERIN" : "ARTSC"; }
 const isSummer = session => session.endsWith("5");
 const sessionLabel = session => isSummer(session) ? `Summer ${session.slice(0,4)}` : `Fall/Winter ${session.slice(0,4)}–${Number(session.slice(0,4)) + 1}`;
-const getTerm = code => code.at(-1);
+export function getTerm(code) { return code.at(-1); }
 // Summer sessions reuse the fall/winter fields for their first/second subsessions.
 const deadlineKey = code => getTerm(code) === "S" ? "winterWaitlistClosed" : "fallWaitlistClosed";
 

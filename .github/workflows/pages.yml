@@ -30,6 +30,8 @@ jobs:
           python-version: "3.11"
       - name: Execute V2 target reconstruction tests
         run: python tests/test_v2_targets.py
+      - name: Verify Python-generated browser feature fixture
+        run: python tests/generate_feature_fixtures.py --check tests/fixtures/python-feature-parity.json
       - name: Validate browser features and model artifact
         run: npm test
       - uses: actions/configure-pages@v5

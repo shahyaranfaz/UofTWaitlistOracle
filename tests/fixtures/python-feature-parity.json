@@ -1,0 +1,33 @@
+{
+  "cases": [
+    {
+      "code": "CSC369H1F",
+      "current": {"course": {"timeIntervals": [1999136000, 1999395200, 1999740800, 1999913600]}, "daysRemaining": 1, "deadline": 2000000000},
+      "expected": {"campus": "ARTSC", "campus_erin": 0, "campus_scar": 0, "capacity": 110, "capacity_changed_7d": 1, "course_code": "CSC369H1F", "days_over_60": 0, "days_squared": 1, "days_to_deadline": 1, "days_under_14": 13, "days_under_7": 6, "log_waitlist": 3.044522437723423, "movement_3d": 8, "movement_7d": 11, "movement_velocity_7d": 1.5714285714285714, "near_deadline_7d": 1, "position": 20, "position_ratio_near_7d": 0.18181818181818182, "position_to_capacity": 0.18181818181818182, "position_to_waitlist": 1.0, "rank_over_30pct": 0, "scar_near_7d": 0, "second_subsession_days": 0, "second_subsession_near_7d": 0, "term": "fall", "term_full_year": 0, "term_winter": 0, "waitlist": 20, "waitlist_ratio_near_7d": 0.18181818181818182, "waitlist_to_capacity": 0.18181818181818182, "winter_near_7d": 0},
+      "meeting": {"enrollmentCap": 100, "enrollmentCapComplex": {"capChanges": [{"newCapacity": 110, "time": 1999827200}], "initialCap": 100}, "enrollmentLogs": [125, 127, 124, 126]},
+      "name": "fall_capacity_change", "position": 20
+    },
+    {
+      "code": "CSC108H5S",
+      "current": {"course": {"timeIntervals": [1998963200, 1999308800, 1999654400, 1999913600]}, "daysRemaining": 1, "deadline": 2000000000},
+      "expected": {"campus": "ERIN", "campus_erin": 1, "campus_scar": 0, "capacity": 120, "capacity_changed_7d": 0, "course_code": "CSC108H5S", "days_over_60": 0, "days_squared": 1, "days_to_deadline": 1, "days_under_14": 13, "days_under_7": 6, "log_waitlist": 3.044522437723423, "movement_3d": 0, "movement_7d": 10, "movement_velocity_7d": 1.4285714285714286, "near_deadline_7d": 1, "position": 5, "position_ratio_near_7d": 0.041666666666666664, "position_to_capacity": 0.041666666666666664, "position_to_waitlist": 0.25, "rank_over_30pct": 0, "scar_near_7d": 0, "second_subsession_days": 1, "second_subsession_near_7d": 1, "term": "winter", "term_full_year": 0, "term_winter": 1, "waitlist": 20, "waitlist_ratio_near_7d": 0.16666666666666666, "waitlist_to_capacity": 0.16666666666666666, "winter_near_7d": 1},
+      "meeting": {"enrollmentCap": 120, "enrollmentLogs": [160, 150, 140]},
+      "name": "winter_erin_short_log", "position": 5
+    },
+    {
+      "code": "MATA32H3F",
+      "current": {"course": {"timeIntervals": [1993520000, 1993779200, 1994384000, 1994816000]}, "daysRemaining": 65, "deadline": 2000000000},
+      "expected": {"campus": "SCAR", "campus_erin": 0, "campus_scar": 1, "capacity": 200, "capacity_changed_7d": 0, "course_code": "MATA32H3F", "days_over_60": 5, "days_squared": 4225, "days_to_deadline": 65, "days_under_14": 0, "days_under_7": 0, "log_waitlist": 2.772588722239781, "movement_3d": 0, "movement_7d": 10, "movement_velocity_7d": 1.4285714285714286, "near_deadline_7d": 0, "position": 15, "position_ratio_near_7d": 0.0, "position_to_capacity": 0.075, "position_to_waitlist": 1.0, "rank_over_30pct": 0, "scar_near_7d": 0, "second_subsession_days": 0, "second_subsession_near_7d": 0, "term": "fall", "term_full_year": 0, "term_winter": 0, "waitlist": 15, "waitlist_ratio_near_7d": 0.0, "waitlist_to_capacity": 0.075, "winter_near_7d": 0},
+      "meeting": {"enrollmentCap": 200, "enrollmentLogs": [230, 220, 210, 205]},
+      "name": "fall_scar_long_horizon", "position": 15
+    },
+    {
+      "code": "BIO120Y1Y",
+      "current": {"course": {"timeIntervals": [1998272000, 1998531200, 1998876800, 1999136000]}, "daysRemaining": 10, "deadline": 2000000000},
+      "expected": {"campus": "ARTSC", "campus_erin": 0, "campus_scar": 0, "capacity": 90, "capacity_changed_7d": 0, "course_code": "BIO120Y1Y", "days_over_60": 0, "days_squared": 100, "days_to_deadline": 10, "days_under_14": 4, "days_under_7": 0, "log_waitlist": 2.1972245773362196, "movement_3d": 2, "movement_7d": 4, "movement_velocity_7d": 0.5714285714285714, "near_deadline_7d": 0, "position": 8, "position_ratio_near_7d": 0.0, "position_to_capacity": 0.08888888888888889, "position_to_waitlist": 1.0, "rank_over_30pct": 0, "scar_near_7d": 0, "second_subsession_days": 0, "second_subsession_near_7d": 0, "term": "full_year", "term_full_year": 1, "term_winter": 0, "waitlist": 8, "waitlist_ratio_near_7d": 0.0, "waitlist_to_capacity": 0.08888888888888889, "winter_near_7d": 0},
+      "meeting": {"enrollmentCap": 90, "enrollmentLogs": [92, 95, 93, 91]},
+      "name": "full_year_rank_above_queue", "position": 8
+    }
+  ],
+  "generator": "tests/generate_feature_fixtures.py"
+}
