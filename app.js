@@ -7,10 +7,30 @@ const courseList = document.querySelector("#course-options");
 const lectureInput = document.querySelector("#lecture-display");
 const lectureValue = document.querySelector("#lecture");
 const lectureList = document.querySelector("#lecture-options");
+const positionInput = document.querySelector("#position");
+const submitButton = form.querySelector('button[type="submit"]');
 let courseOptions = [];
 let activeOption = -1;
 let modelPromise;
+let isSubmitting = false;
 const jsonCache = new Map();
+
+function formIsReady() {
+  const position = Number(positionInput.value);
+  return courseOptions.includes(courseInput.value.trim().toUpperCase())
+    && Boolean(lectureValue.value)
+    && Number.isInteger(position)
+    && position >= 1
+    && position <= 999;
+}
+
+function updateFormState() {
+  submitButton.disabled = isSubmitting || !formIsReady();
+}
+
+function markQueryChanged() {
+  updateFormState();
+}
 
 const campusDigit = code => code.match(/[HY]([135])[FSY]$/)?.[1] ?? "1";
 const campusFaculty = code => campusDigit(code) === "3" ? "SCAR" : campusDigit(code) === "5" ? "ERIN" : "ARTSC";
@@ -98,6 +118,7 @@ function chooseLecture(lecture) {
   lectureValue.value = lecture;
   lectureInput.value = lecture;
   closeLectureList();
+  markQueryChanged();
 }
 
 function chooseCourse(code) {
@@ -105,6 +126,7 @@ function chooseCourse(code) {
   closeCourseList();
   loadLectures(code);
   courseInput.focus();
+  markQueryChanged();
 }
 
 function showCourseMatches() {
@@ -122,8 +144,9 @@ async function loadCourseOptions() {
   try {
     courseOptions = flattenCourseList(await fetchJson(`${SESSIONS.at(-1)}/AAclistall.json`));
   } catch {
-    document.querySelector("#course-help").textContent = "Course list unavailable — enter the exact code";
+    document.querySelector("#course-help").textContent = "Course list unavailable — refresh to try again";
   }
+  updateFormState();
 }
 
 courseInput.addEventListener("focus", showCourseMatches);
@@ -135,6 +158,10 @@ courseInput.addEventListener("input", () => {
   lectureInput.disabled = true;
   closeLectureList();
   showCourseMatches();
+  markQueryChanged();
+});
+positionInput.addEventListener("input", () => {
+  markQueryChanged();
 });
 courseInput.addEventListener("keydown", event => {
   const options = [...courseList.querySelectorAll("li[data-code]")];
@@ -453,19 +480,22 @@ async function estimate(code, lecture, position) {
     } catch { return { found: false, outcomes: [] }; }
   }));
   const outcomes = historical.flatMap(item => item.outcomes);
-  if (!outcomes.length) {
-    throw new Error(historical.some(item => item.found) ? "position-never-reached" : "no-history");
-  }
+  const historyStatus = outcomes.length
+    ? "available"
+    : historical.some(item => item.found)
+      ? "position-never-reached"
+      : "no-history";
   const cleared = outcomes.filter(item => item.cleared).length;
-  const historicalProbability = cleared / outcomes.length;
+  const historicalProbability = outcomes.length ? cleared / outcomes.length : null;
   const seasonalKey = isSummer(current.session) ? "summer" : "fall_winter";
   // Schema 4 is the first artifact trained on cumulative observed queue drops.
   const selectedModel = artifact?.schema_version >= 4 ? artifact.models?.[seasonalKey] : null;
   const modelProbability = selectedModel
     ? predictModel(selectedModel, features)
     : historicalProbability;
+  if (modelProbability === null) throw new Error("model-unavailable");
   return {
-    current, selectedMeeting, outcomes, cleared,
+    current, selectedMeeting, outcomes, cleared, historyStatus,
     probability: Math.round(modelProbability * 100),
     drivers: selectedModel ? modelDrivers(selectedModel, features) : [],
     usedModel: Boolean(selectedModel),
@@ -476,11 +506,13 @@ async function estimate(code, lecture, position) {
 
 function renderEstimate(code, lecture, position, data) {
   const term = getTerm(code) === "S" ? "Winter" : getTerm(code) === "F" ? "Fall" : "full-year";
+  const historyPane = data.historyStatus === "available"
+    ? `<p class="result-summary">The waitlist shrank by at least <strong>${position} ${position === 1 ? "position" : "positions"}</strong> in ${code} in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings.</p>
+      <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${sessionLabel(item.session)} · ${item.meeting} · ${item.instructor}<br><small>${item.startWaitlist} waiting on the equivalent day · ${item.movement} spots of observed movement</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "REACHED" : "DID NOT REACH"}</strong></div>`).join("")}</div>`
+    : `<div class="history-empty"><p class="error-message">${data.historyStatus === "position-never-reached" ? "The course was found, but the waitlist has never been this high." : "The course was found, but it has no previous offerings in the archive."}</p></div>`;
   results.innerHTML = `<div class="result-grid">
     <div class="result-score"><div class="result-label">ORACLE'S ESTIMATE</div><div class="probability">${data.probability}%</div>${data.drivers.length ? `<div class="drivers"><div class="result-label driver-title">DRIVEN BY</div>${data.drivers.map(driver => `<div class="driver ${driver.contribution >= 0 ? "positive" : "negative"}"><span class="driver-sign">${driver.contribution >= 0 ? "+" : "−"}</span><span>${driver.label}</span></div>`).join("")}</div>` : ""}</div>
-    <div><p class="result-summary">The waitlist shrank by at least <strong>${position} ${position === 1 ? "position" : "positions"}</strong> in ${code} in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings.</p>
-      <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${sessionLabel(item.session)} · ${item.meeting} · ${item.instructor}<br><small>${item.startWaitlist} waiting on the equivalent day · ${item.movement} spots of observed movement</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "REACHED" : "DID NOT REACH"}</strong></div>`).join("")}</div>
-    </div>
+    <div>${historyPane}</div>
     <p class="result-note">Compared ${data.current.daysRemaining} days before the ${term} waitlist deadline. This estimates whether cumulative waitlist shrinkage will be at least your position. It cannot tell whether you personally will get into the course. Departures behind you may be counted, while movement hidden by offsetting arrivals between snapshots may be missed.${data.usedModel ? `${data.seasonalKey === "summer" ? " Summer estimates are less stable and should be treated with extra caution." : ""}` : " Historical percentage shown because the model is unavailable. It is the success rate of the previous lecture offerings listed above."}</p>
   </div>`;
   results.hidden = false;
@@ -488,14 +520,12 @@ function renderEstimate(code, lecture, position, data) {
 }
 
 function renderError(error) {
-  const copy = error.message === "position-never-reached"
-    ? "The course was found, but the waitlist has never been this high."
-    : error.message === "no-history"
-      ? "The course was found, but it has no previous offerings in the archive."
-    : error.message === "invalid-course"
+  const copy = error.message === "invalid-course"
       ? "Choose one of the courses shown in the list."
     : error.message === "invalid-lecture"
       ? "Choose one of the available lecture sections."
+    : error.message === "model-unavailable"
+      ? "The model and historical percentage are both unavailable for this query."
       : "I couldn't find that exact course code in the public archive.";
   results.innerHTML = `<p class="result-label">THE ORACLE CAME UP EMPTY</p><p class="error-message">${copy}</p>`;
   results.hidden = false;
@@ -513,23 +543,19 @@ function updateShareUrl(code, lecture, position) {
 
 form.addEventListener("submit", async event => {
   event.preventDefault();
-  const button = form.querySelector("button");
   const code = form.course.value.trim().toUpperCase().replace(/\s/g, "");
   const lecture = form.lecture.value;
   const position = Number(form.position.value);
-  if (courseOptions.length && !courseOptions.includes(code)) {
-    renderError(new Error("invalid-course"));
-    showCourseMatches();
-    return;
-  }
-  button.disabled = true;
-  button.querySelector("span").textContent = "Reading history…";
+  if (!formIsReady()) return;
+  isSubmitting = true;
+  updateFormState();
+  submitButton.querySelector("span").textContent = "Reading history…";
   try {
     renderEstimate(code, lecture, position, await estimate(code, lecture, position));
     updateShareUrl(code, lecture, position);
   }
   catch (error) { renderError(error); }
-  finally { button.disabled = false; button.querySelector("span").textContent = "Ask the Oracle"; }
+  finally { isSubmitting = false; submitButton.querySelector("span").textContent = "Ask the Oracle"; updateFormState(); }
 });
 
 async function restoreSharedEstimate() {

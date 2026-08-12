@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=17">
+  <link rel="stylesheet" href="styles.css?v=20">
 </head>
 <body>
   <div class="noise"></div>
@@ -50,7 +50,7 @@
           <div class="number-input"><span>#</span><input id="position" name="position" type="number" min="1" max="999" placeholder="ENTER RANK" required></div>
           <small>Your place on the waitlist</small>
         </div>
-        <button type="submit"><span>Ask the Oracle</span><span class="arrow">→</span></button>
+        <button type="submit" disabled><span>Ask the Oracle</span><span class="arrow">→</span></button>
       </form>
     </section>
 
@@ -100,7 +100,7 @@
       <p>After the model and feature choices are complete, the production models are refit on all completed sessions for their season. The current session is used only to build live inputs.</p>
       <p><strong>Accuracy</strong> uses a 50% cutoff. <strong>Brier</strong> measures probability error. <strong>ECE</strong> measures calibration. <strong>AUC</strong> measures how well likely target-met rows are ranked above likely target-not-met rows.</p>
       <h3>Baselines</h3>
-      <p>The <strong>historical percentage</strong> is the success rate of the previous lecture offerings listed when you query the Oracle. A lecture counts as a success when its cumulative observed shrinkage at the equivalent date was at least the entered position. Notebook 7 reproduces it from complete archived trajectories. The <strong>literal 10% rule</strong> predicts that threshold when the position is no more than 10% of capacity. The <strong>boosted 10% rule</strong> is a fitted probability curve that still uses only position divided by capacity.</p>
+      <p>The <strong>historical percentage</strong> is the success rate of the previous lecture offerings listed when you query the Oracle. A lecture counts as a success when its cumulative observed shrinkage at the equivalent date was at least the entered position. The <strong>literal 10% rule</strong> predicts that threshold when the position is no more than 10% of capacity. The <strong>boosted 10% rule</strong> is a fitted probability curve that still uses only position divided by capacity.</p>
       <h3>Overall performance</h3>
       <p>The Oracle and both capacity baselines are scored on every validation row.</p>
       <div class="methodology-table-wrap"><table>
@@ -132,12 +132,12 @@
       <p>On the common subset, the Oracle cut Brier error by 51.2% against the boosted 10% rule, 31.8% against history, and 86.7% against the literal 10% rule in Fall/Winter. Summer reductions were 38.8%, 26.4%, and 85.5%. The overall performance claim comes from the all-validation table above.</p>
       <p>The complete benchmark calculations, chronological fold results, and figure generation are available in <a href="https://github.com/shahyaranfaz/UofTWaitlistOracle/blob/master/notebooks/v1/07_production_benchmark.ipynb" target="_blank" rel="noreferrer">Notebook 7</a>.</p>
       <h3>Production and limitations</h3>
-      <p>The exported tree splits, leaf values, and preprocessing medians run locally in the browser. Historical outcomes are fetched and displayed separately. They do not change the model percentage.</p>
+      <p>The exported tree splits, leaf values, and preprocessing medians run locally in the browser. Historical outcomes are fetched and displayed separately. They do not change the model percentage, and the Oracle can estimate a new course or an unusually high rank without them.</p>
       <p>Cumulative shrinkage is inferred from aggregate snapshots rather than student records. Departures behind the entered position may be counted, and movement hidden by offsetting arrivals between snapshots may be missed. Scheduling, reserved seats, and student behaviour can change between years. Summer has fewer comparable observations and should be treated with more caution.</p>
       <h3>Source</h3>
       <p>Enrollment history is maintained by <a href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">ICPRplshelp</a> and originates from U of T’s public timetable builder.</p>
     </div>
   </dialog>
-  <script type="module" src="app.js?v=23"></script>
+  <script type="module" src="app.js?v=27"></script>
 </body>
 </html>

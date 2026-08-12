@@ -2,10 +2,9 @@
 
 UofT Waitlist Oracle estimates the probability that a waitlist will record
 enough cumulative shrinkage to cover an entered position for a specific
-University of Toronto course and lecture section. It combines
-the current queue, section capacity, time remaining, recent movement, course
-context, and public enrollment history in a model that runs entirely in the 
-browser.
+University of Toronto course and lecture section. It combines the current
+queue, section capacity, time remaining, recent movement, course context, and
+public enrollment history in a model that runs entirely in the browser.
 
 Every estimate is accompanied by the underlying outcomes from previous lecture
 offerings. The percentage is a statistical estimate—not a guarantee, academic
@@ -143,11 +142,10 @@ The Oracle is compared with three understandable baselines:
   waitlist rank divided by lecture capacity.
 
 The Oracle and both capacity baselines are scored on every validation row. The
-historical percentage is reproduced from complete archived trajectories and is
-available only when an earlier lecture reached the exact entered position. A
-second table therefore compares all four methods on that common subset, which
-covers 53.7% of Fall/Winter validation weight and 40.7% of Summer validation
-weight.
+historical percentage is available only when an earlier lecture reached the
+exact entered position. A second table therefore compares all four methods on
+that common subset, which covers 53.7% of Fall/Winter validation weight and
+40.7% of Summer validation weight.
 
 ### Overall performance on all validation rows
 
