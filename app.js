@@ -104,7 +104,7 @@ async function loadSessionManifest() {
 }
 
 function loadModel() {
-  modelPromise ??= fetch("model/oracle-model.json?v=9")
+  modelPromise ??= fetch("model/oracle-model.json?v=10")
     .then(response => {
       if (!response.ok) throw new Error(`Model ${response.status}`);
         return response.json();
