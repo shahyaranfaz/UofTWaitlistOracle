@@ -171,48 +171,47 @@ that common subset, which covers 72.3% of Fall/Winter evaluation weight and
 
 | Season      |           Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|-----------------:|----------:|-----------:|-----------:|-----------:|
-| Fall/Winter |     Oracle model | **85.6%** | **0.1150** |     0.0319 | **0.7580** |
-| Fall/Winter | Literal 10% rule |     82.8% |     0.1721 |     0.1721 |     0.4965 |
-| Fall/Winter | Boosted 10% rule |     83.6% |     0.1374 | **0.0065** |     0.4909 |
-| Summer      |     Oracle model | **77.7%** | **0.1646** |     0.0681 | **0.6995** |
-| Summer      | Literal 10% rule |     69.6% |     0.3040 |     0.3040 |     0.6049 |
-| Summer      | Boosted 10% rule |     76.6% |     0.1737 | **0.0267** |     0.6192 |
+| Fall/Winter |     Oracle model | **97.4%** | **0.0170** |     0.0065 | **0.9853** |
+| Fall/Winter | Literal 10% rule |     94.9% |     0.0512 |     0.0512 |     0.5006 |
+| Fall/Winter | Boosted 10% rule |     95.8% |     0.0406 | **0.0026** |     0.5232 |
+| Summer      |     Oracle model | **93.6%** | **0.0496** |     0.0229 | **0.9214** |
+| Summer      | Literal 10% rule |     73.3% |     0.2667 |     0.2667 |     0.6518 |
+| Summer      | Boosted 10% rule |     91.1% |     0.0778 | **0.0130** |     0.6864 |
 
 ### Direct comparison on the historical-comparable subset
 
 | Season      |                Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|----------------------:|----------:|-----------:|-----------:|-----------:|
-| Fall/Winter |          Oracle model | **86.5%** | **0.1080** |     0.0299 | **0.7697** |
-| Fall/Winter | Historical percentage |     83.0% |     0.1563 |     0.1452 |     0.6546 |
-| Fall/Winter |      Literal 10% rule |     84.2% |     0.1584 |     0.1584 |     0.4969 |
-| Fall/Winter |      Boosted 10% rule |     84.8% |     0.1295 | **0.0173** |     0.4906 |
-| Summer      |          Oracle model | **78.6%** | **0.1606** |     0.0667 | **0.6948** |
-| Summer      | Historical percentage |     77.0% |     0.2218 |     0.2135 |     0.5992 |
-| Summer      |      Literal 10% rule |     71.1% |     0.2886 |     0.2886 |     0.5988 |
-| Summer      |      Boosted 10% rule |     78.0% |     0.1659 | **0.0279** |     0.6104 |
+| Fall/Winter |          Oracle model | **97.9%** | **0.0143** |     0.0059 | **0.9871** |
+| Fall/Winter | Historical percentage |     97.6% |     0.0222 |     0.0204 |     0.8411 |
+| Fall/Winter |      Literal 10% rule |     95.7% |     0.0425 |     0.0425 |     0.4968 |
+| Fall/Winter |      Boosted 10% rule |     96.5% |     0.0342 | **0.0044** |     0.5008 |
+| Summer      |          Oracle model | **94.3%** | **0.0451** |     0.0211 | **0.9078** |
+| Summer      | Historical percentage |     94.1% |     0.0567 |     0.0542 |     0.6933 |
+| Summer      |      Literal 10% rule |     76.6% |     0.2343 |     0.2343 |     0.6802 |
+| Summer      |      Boosted 10% rule |     92.9% |     0.0635 | **0.0229** |     0.7224 |
 
-The figures below visualize this common subset so that every plotted method is
+The figures below visualize the common subset so that every plotted method is
 evaluated on identical rows.
 
 ![Oracle model versus simple waitlist baselines](docs/assets/model-baseline-benchmark.png)
 
-![Probability error across chronological holdouts](docs/assets/model-chronological-benchmark.png)
+![Probability error on the latest completed sessions](docs/assets/model-chronological-benchmark.png)
 
-On the common subset, the Oracle reduced Brier error by 16.7% against the
-boosted 10% rule, 30.9% against the historical percentage, and 31.8% against
-the literal 10% rule in Fall/Winter. The Summer reductions were 3.1%, 27.6%,
-and 44.3%. Overall model performance is represented by the all-evaluation
+On the common subset, the Oracle reduced Brier error by 32.9% against the
+boosted 10% rule, 20.4% against the historical percentage, and 80.7% against
+the literal 10% rule in Fall/Winter. The Summer reductions were 28.9%, 20.4%,
+and 80.9%. Overall model performance is represented by the all-evaluation
 table, not the easier historical-comparable subset.
 
 ### Release status
 
 Fall/Winter passed every pre-locked release gate and is marked **validated**.
-Summer beat the literal and boosted 10% baselines, but missed the strict ECE,
-near-deadline, large-queue, and probability-bin calibration gates. It is
-therefore released as **experimental**. Its latest-session ECE was 0.0681,
-near-deadline gap 0.0894, large-queue gap 0.1507, and maximum eligible
-probability-bin gap 0.1276. Summer percentages should be treated with extra
-caution.
+Summer beat the literal and boosted 10% baselines but missed the strict near-deadline
+calibration and maximum probability-bin calibration gates. It is
+therefore released as **experimental**. Its latest-session near-deadline gap was 0.0904,
+maximum probability-bin gap was 0.1569, and other calibration diagnostics passed.
+Summer percentages should be treated with extra caution.
 
 ### Production inference
 
