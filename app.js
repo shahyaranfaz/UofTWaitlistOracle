@@ -13,6 +13,7 @@ const submitButton = form.querySelector('button[type="submit"]');
 let courseOptions = [];
 let activeOption = -1;
 let modelPromise;
+const HISTORICAL_NEGATIVE_MAX_GAP_HOURS = 48;
 let isSubmitting = false;
 let lectureRequestId = 0;
 const lectureRankLimits = new Map();
@@ -299,6 +300,10 @@ export function analyzeMeeting(course, meeting, deadline, daysRemaining, positio
     movement += Math.max(previousWaitlist - waitlist, 0);
     previousWaitlist = waitlist;
   }
+  const terminalGapHours = (deadline - course.timeIntervals[endIndex]) / 3600;
+  // An observed success is usable even if collection ended early. An apparent
+  // failure is unresolved unless the archive continued close enough to closure.
+  if (movement < position && terminalGapHours > HISTORICAL_NEGATIVE_MAX_GAP_HOURS) return null;
   return {
     meeting: meeting.meetingNumber,
     movement,
@@ -376,7 +381,7 @@ export function modelFeatures(code, current, meeting, position) {
   };
 }
 
-function applyCalibration(probability, calibration) {
+export function applyCalibration(probability, calibration) {
   if (!calibration || calibration.method === "none") return probability;
   if (calibration.method === "platt") {
     const bounded = Math.min(Math.max(probability, 1e-6), 1 - 1e-6);
@@ -399,7 +404,7 @@ function applyCalibration(probability, calibration) {
   return probability;
 }
 
-function predictModel(model, features) {
+export function predictModel(model, features) {
   if (model.trees) {
     const values = model.numeric_features.map((feature, index) =>
       Number.isFinite(features[feature]) ? features[feature] : model.imputation_values[index]

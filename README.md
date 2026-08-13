@@ -208,9 +208,9 @@ table, not the easier historical-comparable subset.
 
 Fall/Winter passed every pre-locked release gate and is marked **validated**.
 Summer beat the literal and boosted 10% baselines but missed the strict near-deadline
-calibration and maximum probability-bin calibration gates. It is
+calibration and maximum calibration-gap gate among probability bins representing at least 2% of evaluation weight. It is
 therefore released as **experimental**. Its latest-session near-deadline gap was 0.0904,
-maximum probability-bin gap was 0.1569, and other calibration diagnostics passed.
+maximum eligible probability-bin gap was 0.1569, and other calibration diagnostics passed.
 Summer percentages should be treated with extra caution.
 
 ### Production inference

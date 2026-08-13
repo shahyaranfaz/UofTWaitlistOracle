@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 
 const source = fs.readFileSync(new URL("../app.js", import.meta.url), "utf8");
 const fixtures = JSON.parse(fs.readFileSync(new URL("./fixtures/python-feature-parity.json", import.meta.url), "utf8"));
+const inferenceFixtures = JSON.parse(fs.readFileSync(new URL("./fixtures/python-inference-parity.json", import.meta.url), "utf8"));
+const artifact = JSON.parse(fs.readFileSync(new URL("../model/oracle-model.json", import.meta.url), "utf8"));
 
 function functionSource(name) {
   const marker = `export function ${name}(`;
@@ -22,6 +24,7 @@ function functionSource(name) {
 const sandbox = {};
 vm.createContext(sandbox);
 vm.runInContext(`
+  const HISTORICAL_NEGATIVE_MAX_GAP_HOURS = 48;
   ${functionSource("campusDigit")}
   ${functionSource("campusFaculty")}
   ${functionSource("getTerm")}
@@ -29,12 +32,15 @@ vm.runInContext(`
   ${functionSource("snapshotAt")}
   ${functionSource("meetingSnapshotAt")}
   ${functionSource("analyzeMeeting")}
+  ${functionSource("applyCalibration")}
+  ${functionSource("predictModel")}
   ${functionSource("modelFeatures")}
   ${functionSource("modelMedian")}
   ${functionSource("coherentCounterfactual")}
   ${functionSource("parseSessionManifest")}
   globalThis.build = modelFeatures;
   globalThis.analyzeOne = analyzeMeeting;
+  globalThis.predict = predictModel;
   globalThis.counterfactual = coherentCounterfactual;
   globalThis.parseManifest = parseSessionManifest;
 `, sandbox);
@@ -70,4 +76,17 @@ const churnMeeting = {meetingNumber: "LEC0101", enrollmentCap: 100, enrollmentLo
 const churnOutcome = sandbox.analyzeOne(churnCourse, churnMeeting, 2_000_000_000, 10, 2);
 assert.equal(churnOutcome.movement, 5, "Historical evidence must retain visible movement when arrivals refill the queue");
 assert.equal(churnOutcome.cleared, true);
+const incompleteCourse = {timeIntervals: [2_000_000_000 - 10 * 86_400, 2_000_000_000 - 3 * 86_400]};
+const incompleteNegative = {meetingNumber: "LEC0101", enrollmentCap: 100, enrollmentLogs: [110, 109]};
+assert.equal(sandbox.analyzeOne(incompleteCourse, incompleteNegative, 2_000_000_000, 10, 2), null,
+  "An unresolved historical negative beyond 48 hours must be excluded");
+const incompleteSuccess = {meetingNumber: "LEC0101", enrollmentCap: 100, enrollmentLogs: [110, 105]};
+assert.equal(sandbox.analyzeOne(incompleteCourse, incompleteSuccess, 2_000_000_000, 10, 2).cleared, true,
+  "An observed success remains usable when collection ended early");
+assert.equal(inferenceFixtures.schema_version, artifact.schema_version);
+for (const fixture of inferenceFixtures.cases) {
+  const probability = sandbox.predict(artifact.models[fixture.season], fixture.features);
+  assert.ok(Math.abs(probability - fixture.expected_probability) < 1e-12,
+    `${fixture.name}: JavaScript probability ${probability} != Python ${fixture.expected_probability}`);
+}
 console.log("Production feature parity fixture passed");

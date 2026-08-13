@@ -133,7 +133,7 @@
       </table></div>
       <p>On the common subset, the Oracle reduced Brier error by 58.2% against the boosted 10% rule, 35.6% against history, and 66.4% against the literal 10% rule in Fall/Winter. Summer reductions were 28.9%, 20.4%, and 80.7%. The overall performance claim comes from the all-evaluation table above.</p>
       <h3>Release status</h3>
-      <p>Fall/Winter passed every pre-locked release gate and is marked <strong>validated</strong>. Summer beat the literal and boosted 10% baselines but missed the strict near-deadline calibration and maximum probability-bin calibration gates. It is released as <strong>experimental</strong>. Its latest-session near-deadline gap was 0.0904 and maximum probability-bin gap was 0.1569. Treat Summer percentages with extra caution.</p>
+      <p>Fall/Winter passed every pre-locked release gate and is marked <strong>validated</strong>. Summer beat the literal and boosted 10% baselines but missed the strict near-deadline calibration and maximum calibration-gap gate among probability bins representing at least 2% of evaluation weight. It is released as <strong>experimental</strong>. Its latest-session near-deadline gap was 0.0904 and maximum eligible probability-bin gap was 0.1569. Treat Summer percentages with extra caution.</p>
       <p>The locked latest-session benchmark and figure generation are available in <a href="https://github.com/shahyaranfaz/UofTWaitlistOracle/blob/master/notebooks/v2/04_latest_session_evaluation_and_release.ipynb" target="_blank" rel="noreferrer">V2 Notebook 4</a>.</p>
       <h3>Production and limitations</h3>
       <p>The exported tree splits, leaf values, and preprocessing medians run locally in the browser. Historical outcomes are fetched and displayed separately. They do not change the model percentage, and the Oracle can estimate a new course or an unusually high rank without them.</p>
@@ -142,6 +142,6 @@
       <p>Enrollment history is maintained by <a href="https://github.com/ICPRplshelp/Enrollment-Data" target="_blank" rel="noreferrer">ICPRplshelp</a> and originates from U of T’s public timetable builder.</p>
     </div>
   </dialog>
-  <script type="module" src="app.js?v=42"></script>
+  <script type="module" src="app.js?v=43"></script>
 </body>
 </html>
