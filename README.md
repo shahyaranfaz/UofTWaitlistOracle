@@ -66,8 +66,8 @@ offer directly.
 The Oracle uses separate histogram gradient-boosted tree models for
 Fall/Winter and Summer. Each ensemble contains 200 small trees with at most 15
 leaves and L2 regularization of 3. Missing numeric values are filled with the
-training median. A same-season Platt mapping selected on earlier sessions
-calibrates each model's probabilities.
+training median. Calibration is selected on earlier same-season sessions.
+Fall/Winter uses isotonic calibration, while Summer uses Platt scaling.
 
 The production model has 26 numeric features:
 
@@ -165,7 +165,7 @@ The Oracle and both capacity baselines are scored on every validation row. The
 historical percentage is available only when an earlier lecture reached the
 exact entered position. A second table therefore compares all four methods on
 that common subset, which covers 72.3% of Fall/Winter evaluation weight and
-54.6% of Summer evaluation weight.
+54.3% of Summer evaluation weight.
 
 ### Latest-session performance on all evaluation rows
 
@@ -198,10 +198,10 @@ evaluated on identical rows.
 
 ![Probability error on the latest completed sessions](docs/assets/model-chronological-benchmark.png)
 
-On the common subset, the Oracle reduced Brier error by 32.9% against the
-boosted 10% rule, 20.4% against the historical percentage, and 80.7% against
+On the common subset, the Oracle reduced Brier error by 58.2% against the
+boosted 10% rule, 35.6% against the historical percentage, and 66.4% against
 the literal 10% rule in Fall/Winter. The Summer reductions were 28.9%, 20.4%,
-and 80.9%. Overall model performance is represented by the all-evaluation
+and 80.7%. Overall model performance is represented by the all-evaluation
 table, not the easier historical-comparable subset.
 
 ### Release status
