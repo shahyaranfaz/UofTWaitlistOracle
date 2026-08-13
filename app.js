@@ -653,7 +653,8 @@ async function estimate(code, lecture, position) {
     drivers: selectedModel ? modelDrivers(selectedModel, features) : [],
     usedModel: Boolean(selectedModel),
     modelQuality: selectedModel?.quality ?? "legacy",
-    seasonalKey
+    seasonalKey,
+    waitlist: features.waitlist,
   };
 }
 
@@ -661,13 +662,13 @@ function renderEstimate(code, lecture, position, data) {
   const term = getTerm(code) === "S" ? "Winter" : getTerm(code) === "F" ? "Fall" : "full-year";
   const safeCode = escapeHtml(code);
   const historyPane = data.historyStatus === "available"
-    ? `<p class="result-summary">The waitlist recorded at least <strong>${position} ${position === 1 ? "position" : "positions"}</strong> of downward movement in ${safeCode} in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings.</p>
+    ? `<p class="result-summary">A ${safeCode} waitlist recorded at least <strong>${position} ${position === 1 ? "position" : "positions"}</strong> of downward movement in <strong>${data.cleared} of ${data.outcomes.length}</strong> previous offerings where the waitlist was at least ${data.waitlist} large and there ${data.current.daysRemaining === 1 ? "was" : "were"} ${data.current.daysRemaining} ${data.current.daysRemaining === 1 ? "day" : "days"} before the ${term} waitlist deadline.</p>
       <div class="outcomes">${data.outcomes.slice().reverse().map(item => `<div class="outcome"><span>${escapeHtml(sessionLabel(item.session))} · ${escapeHtml(item.meeting)} · ${escapeHtml(item.instructor)}<br><small>${Number(item.startWaitlist)} waiting on the equivalent day · ${Number(item.movement)} positions of downward movement</small></span><strong class="${item.cleared ? "" : "miss"}">${item.cleared ? "REACHED" : "DID NOT REACH"}</strong></div>`).join("")}</div>`
     : `<div class="history-empty"><p class="error-message">${data.historyStatus === "position-never-reached" ? "The course was found, but the waitlist has never been this high." : "The course was found, but it has no previous offerings in the archive."}</p></div>`;
   results.innerHTML = `<div class="result-grid">
     <div class="result-score"><div class="result-label">ORACLE'S ESTIMATE</div><div class="probability">${data.probability}%</div>${data.drivers.length ? `<div class="drivers"><div class="result-label driver-title">DRIVEN BY</div>${data.drivers.map(driver => `<div class="driver ${driver.contribution >= 0 ? "positive" : "negative"}"><span class="driver-sign">${driver.contribution >= 0 ? "+" : "−"}</span><span>${driver.label}</span></div>`).join("")}</div>` : ""}</div>
     <div>${historyPane}</div>
-    <p class="result-note">Compared ${data.current.daysRemaining} days before the ${term} waitlist deadline. This estimates whether the cumulative downward waitlist movement will as large as your current waitlist rank. It does not guarantee you will get into the course. Departures behind you in the queue may be counted, and departures could be hidden by offsetting arrivals between snapshots.${data.usedModel ? "" : " The model is unavailable. The Oracle's current percentage is just the success rate in the previous lecture offerings listed above."}</p> 
+    <p class="result-note">This estimates whether the cumulative downward waitlist movement will be as large as your current waitlist rank. It does not guarantee you will get into the course. Departures behind you in the queue may be counted, and departures could be hidden by offsetting arrivals between snapshots.${data.usedModel ? "" : " The model is unavailable. The Oracle's current percentage is just the success rate in the previous lecture offerings listed above."}</p> 
   </div>`;
   results.hidden = false;
   results.scrollIntoView({ behavior: "smooth", block: "start" });
