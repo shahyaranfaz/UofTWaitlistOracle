@@ -1,14 +1,24 @@
 # UofT Waitlist Oracle
 
-UofT Waitlist Oracle estimates the probability that a waitlist will record
-enough cumulative downward movement to cover an entered position for a specific
-University of Toronto course and lecture section. It combines the current
-queue, section capacity, time remaining, recent movement, course context, and
-public enrollment history in a model that runs entirely in the browser.
+[**Try the live demo**](https://shahyaranfaz.github.io/UofTWaitlistOracle/)
 
-Every estimate is accompanied by the underlying outcomes from previous lecture
-offerings. The percentage is a statistical estimate—not a guarantee, academic
-advice, or an official U of T forecast.
+UofT Waitlist Oracle estimates whether the observed waitlist movement for a University of Toronto course and lecture section will cover an entered position. It combines the current queue, section capacity, time remaining, recent movement, course context, and public enrollment history in a model that runs entirely in the browser. Each estimate includes outcomes from comparable previous lecture offerings.
+
+**Headline result:** 97.4% accuracy on the validated Fall/Winter model and 93.6% on the experimental Summer model across locked chronological holdouts. Summer missed 2 pre-locked calibration gates and should be treated with extra caution.
+
+The percentage is a statistical estimate, not a guarantee, academic advice, or an official U of T forecast.
+
+## Run the research environment
+
+The version 2 notebooks record the core package versions used for the published model artifacts. Create a Python 3.10 environment and install the pinned dependencies:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+Start with the [version 2 notebook guide](notebooks/v2/README.md) for the modelling sequence and required local data.
 
 ## Methodology
 
@@ -171,10 +181,10 @@ that common subset, which covers 72.3% of Fall/Winter evaluation weight and
 
 | Season      |           Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|-----------------:|----------:|-----------:|-----------:|-----------:|
-| Fall/Winter |     Oracle model | **97.4%** | **0.0170** |     0.0065 | **0.9853** |
+| Fall/Winter | Oracle model (validated) | **97.4%** | **0.0170** |     0.0065 | **0.9853** |
 | Fall/Winter | Literal 10% rule |     94.9% |     0.0512 |     0.0512 |     0.5006 |
 | Fall/Winter | Boosted 10% rule |     95.8% |     0.0406 | **0.0026** |     0.5232 |
-| Summer      |     Oracle model | **93.6%** | **0.0496** |     0.0229 | **0.9214** |
+| Summer      | Oracle model (experimental) | **93.6%** | **0.0496** |     0.0229 | **0.9214** |
 | Summer      | Literal 10% rule |     73.3% |     0.2667 |     0.2667 |     0.6518 |
 | Summer      | Boosted 10% rule |     91.1% |     0.0778 | **0.0130** |     0.6864 |
 
@@ -182,11 +192,11 @@ that common subset, which covers 72.3% of Fall/Winter evaluation weight and
 
 | Season      |                Method |  Accuracy |      Brier |        ECE |    ROC AUC |
 |-------------|----------------------:|----------:|-----------:|-----------:|-----------:|
-| Fall/Winter |          Oracle model | **97.9%** | **0.0143** |     0.0059 | **0.9871** |
+| Fall/Winter | Oracle model (validated) | **97.9%** | **0.0143** |     0.0059 | **0.9871** |
 | Fall/Winter | Historical percentage |     97.6% |     0.0222 |     0.0204 |     0.8411 |
 | Fall/Winter |      Literal 10% rule |     95.7% |     0.0425 |     0.0425 |     0.4968 |
 | Fall/Winter |      Boosted 10% rule |     96.5% |     0.0342 | **0.0044** |     0.5008 |
-| Summer      |          Oracle model | **94.3%** | **0.0451** |     0.0211 | **0.9078** |
+| Summer      | Oracle model (experimental) | **94.3%** | **0.0451** |     0.0211 | **0.9078** |
 | Summer      | Historical percentage |     94.1% |     0.0567 |     0.0542 |     0.6933 |
 | Summer      |      Literal 10% rule |     76.6% |     0.2343 |     0.2343 |     0.6802 |
 | Summer      |      Boosted 10% rule |     92.9% |     0.0635 | **0.0229** |     0.7224 |
@@ -249,3 +259,7 @@ Enrollment history is maintained by
 from U of T's public timetable builder. The application fetches only the public
 files required for the selected course. A local archive is retained for 
 reproducible research but is not deployed or wired into the website.
+
+## License
+
+This project is available under the [MIT License](LICENSE).
